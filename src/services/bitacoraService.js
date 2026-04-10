@@ -28,7 +28,17 @@ export const bitacoraService = {
   exportLogs: (format = 'csv') => apiClient.get('/seguridad/bitacora/export/', { 
     params: { format },
     responseType: 'blob'
-  })
+  }),
+  
+  // Registrar una acción en la bitácora
+  registrar: (accion, modulo, descripcion, detalles = {}) => {
+    return apiClient.post('/seguridad/bitacora/', {
+      accion,
+      modulo,
+      descripcion,
+      detalles
+    });
+  }
 };
 
 export default bitacoraService;
