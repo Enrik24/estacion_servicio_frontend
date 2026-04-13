@@ -48,18 +48,16 @@ export const authService = {
 
   logout: async () => {
     try {
-      // Solo llamar al backend si hay token
+      // Intentar llamar al backend para logout (ignorar cualquier error)
       const token = localStorage.getItem('access_token');
       if (token) {
         await apiClient.post('/auth/logout/');
       }
     } catch (error) {
-      // Ignorar errores 401 (token ya expirado o inválido)
-      if (error.response?.status !== 401) {
-        console.error('Error en logout:', error);
-      }
+      // Ignorar cualquier error (token expirado, blacklisted, etc.)
+      console.log('Logout: ignorando error del backend', error.response?.status);
     } finally {
-      // Siempre limpiar localStorage
+      // SIEMPRE limpiar localStorage
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
