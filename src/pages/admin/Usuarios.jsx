@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { usuariosService, rolesService } from '../../services/api';
-import bitacoraService from '../../services/bitacoraService';
+import { usuariosService, rolesService, bitacoraService } from '../../services/api';
+import { usePermiso } from '../../hooks/usePermiso';
 
 export default function UsuariosModule() {
+  // Validar permisos
+  const puedeVer = usePermiso('usuarios.ver');
+  const puedeCrear = usePermiso('usuarios.crear');
+  const puedeEditar = usePermiso('usuarios.editar');
+  const puedeEliminar = usePermiso('usuarios.eliminar');
+
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,9 +26,13 @@ export default function UsuariosModule() {
 
   // Load users and roles on mount
   useEffect(() => {
-    loadUsers();
-    loadRoles();
-  }, []);
+    if (puedeVer) {
+      loadUsers();
+      loadRoles();
+    } else {
+      setLoading(false);
+    }
+  }, [puedeVer]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -92,38 +102,11 @@ export default function UsuariosModule() {
         }
         await usuariosService.update(editingUser.id, { ...userData, is_active: formData.is_active });
         userId = editingUser.id;
-        
-        // Registrar UPDATE en bitácora
-        await bitacoraService.registrar(
-          'UPDATE',
-          'Usuarios',
-          `Se actualizó el usuario: ${userData.nombre}`,
-          {
-            usuario_id: editingUser.id,
-            nombre_usuario: userData.nombre,
-            email: userData.email,
-            estado_anterior: editingUser.is_active.toString(),
-            estado_nuevo: formData.is_active.toString()
-          }
-        );
       } else {
         // Create new user (without confirmPassword)
         const { rol, confirmPassword, ...userData } = formData;
         const response = await usuariosService.create({ ...userData, is_active: formData.is_active });
         userId = response.data.id;
-        
-        // Registrar CREATE en bitácora
-        await bitacoraService.registrar(
-          'CREATE',
-          'Usuarios',
-          `Se creó un nuevo usuario: ${userData.nombre}`,
-          {
-            usuario_id: userId,
-            nombre_usuario: userData.nombre,
-            email: userData.email,
-            estado: formData.is_active ? 'Activo' : 'Inactivo'
-          }
-        );
       }
       
       // Assign role using the specific endpoint
@@ -168,18 +151,6 @@ export default function UsuariosModule() {
         const userToDelete = users.find(u => u.id === id);
         await usuariosService.delete(id);
         
-        // Registrar DELETE en bitácora
-        await bitacoraService.registrar(
-          'DELETE',
-          'Usuarios',
-          `Se eliminó el usuario: ${userToDelete?.nombre}`,
-          {
-            usuario_id: id,
-            nombre_usuario: userToDelete?.nombre,
-            email: userToDelete?.email
-          }
-        );
-        
         await loadUsers();
       } catch (err) {
         alert('Error al eliminar usuario');
@@ -189,14 +160,41 @@ export default function UsuariosModule() {
 
   return (
     <div className="space-y-6">
+      {/* Validar permiso de lectura */}
+      {!puedeVer && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">!</span>
+            </div>
+            <h3 className="text-lg font-semibold text-red-900">Acceso Denegado</h3>
+          </div>
+          <p className="text-sm text-red-700">
+            No tienes permiso para acceder a la gestión de usuarios. 
+            Contacta al administrador del sistema si necesitas acceso.
+          </p>
+        </div>
+      )}
+
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Gestión de Usuarios</h2>
-        <div className="mt-4">
-          <Button onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' }); setShowModal(true); }} fullWidth={false} size="small">Nuevo Usuario</Button>
-        </div>
+        {puedeVer && (
+          <div className="mt-4">
+            <Button 
+              onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' }); setShowModal(true); }} 
+              fullWidth={false} 
+              size="small"
+              disabled={!puedeCrear}
+              title={!puedeCrear ? 'No tienes permiso para crear usuarios' : ''}
+            >
+              Nuevo Usuario
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      {puedeVer && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-200">
           <Input
             type="text"
@@ -246,8 +244,15 @@ export default function UsuariosModule() {
                     </span>
                   </td>
                   <td className="px-4 py-3 space-x-2">
-                    <button onClick={() => handleEdit(user)} className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                    <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
+                    {puedeEditar && (
+                      <button onClick={() => handleEdit(user)} className="text-blue-600 hover:text-blue-800 text-sm" title="Editar usuario">Editar</button>
+                    )}
+                    {puedeEliminar && (
+                      <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-800 text-sm" title="Eliminar usuario">Eliminar</button>
+                    )}
+                    {!puedeEditar && !puedeEliminar && (
+                      <span className="text-gray-400 text-sm">Sin acciones</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -292,6 +297,8 @@ export default function UsuariosModule() {
           </div>
         )}
       </div>
+
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

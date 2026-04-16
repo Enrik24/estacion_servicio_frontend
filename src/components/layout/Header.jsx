@@ -3,6 +3,7 @@ import { useNavigate, NavLink } from 'react-router-dom';
 import { ArrowRight, User, Settings, LogOut, ChevronDown, Menu, X, Bell, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../../services/api';
+import { usePuedeAccederAdmin } from '../../hooks/usePermiso';
 
 function Header({ 
   showNav = true, 
@@ -15,12 +16,19 @@ function Header({
   onLogout = null
 }) {
   const navigate = useNavigate();
+  console.log('[Header.render] Starting render...');
+  const puedeAccederAdmin = usePuedeAccederAdmin(); // ← Llamar aquí al inicio
+  console.log('[Header.render] puedeAccederAdmin retornado:', puedeAccederAdmin);
   const [scrolled, setScrolled] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userName, setUserName] = useState('Usuario');
   const [userRole, setUserRole] = useState('');
   const dropdownRef = useRef(null);
+
+  console.log('[Header] puedeAccederAdmin:', puedeAccederAdmin);
+  console.log('[Header] showUserMenu:', showUserMenu);
+  console.log('[Header] adminMode:', adminMode);
 
   useEffect(() => {
     // Read user from localStorage
@@ -174,36 +182,41 @@ function Header({
                           </button>
                         </>
                       ) : (
-                        <>
-                          <button
-                            onClick={() => navigate('/profile')}
-                            className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
-                          >
-                            <User className="w-4 h-4 text-gray-600" />
-                            <span className="text-gray-700">Perfil</span>
-                          </button>
-                          <button
-                            onClick={() => navigate('/admin')}
-                            className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
-                          >
-                            <Settings className="w-4 h-4 text-gray-600" />
-                            <span className="text-gray-700">Panel Admin</span>
-                          </button>
-                          <div className="border-t border-gray-200 my-2"></div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              console.log('=== BOTÓN CERRAR SESIÓN USER - Click detectado ===');
-                              handleLogout();
-                            }}
-                            className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-red-50 transition"
-                          >
-                            <LogOut className="w-4 h-4 text-red-500" />
-                            <span className="text-red-500">Cerrar Sesión</span>
-                          </button>
-                        </>
-                      )}
+                          <>
+                            <button
+                              onClick={() => navigate('/profile')}
+                              className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
+                            >
+                              <User className="w-4 h-4 text-gray-600" />
+                              <span className="text-gray-700">Perfil</span>
+                            </button>
+                            {puedeAccederAdmin && (
+                              <>
+                                <div className="border-t border-gray-200 my-2"></div>
+                                <button
+                                  onClick={() => navigate('/admin')}
+                                  className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
+                                >
+                                  <Settings className="w-4 h-4 text-gray-600" />
+                                  <span className="text-gray-700">Panel Admin</span>
+                                </button>
+                              </>
+                            )}
+                            <div className="border-t border-gray-200 my-2"></div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('=== BOTÓN CERRAR SESIÓN USER - Click detectado ===');
+                                handleLogout();
+                              }}
+                              className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-red-50 transition"
+                            >
+                              <LogOut className="w-4 h-4 text-red-500" />
+                              <span className="text-red-500">Cerrar Sesión</span>
+                            </button>
+                          </>
+                        )}
                     </motion.div>
                   )}
                 </AnimatePresence>

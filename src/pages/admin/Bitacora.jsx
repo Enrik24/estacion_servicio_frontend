@@ -2,8 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { bitacoraService } from '../../services/api';
+import { usePermiso } from '../../hooks/usePermiso';
 
 export default function BitacoraModule() {
+  // Validar permiso
+  const puedoVerBitacora = usePermiso('bitacora.ver');
+
   // Estados para los datos del backend
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,12 +18,16 @@ export default function BitacoraModule() {
   const [busquedaLibre, setBusquedaLibre] = useState("");
   const [filtroAtributo, setFiltroAtributo] = useState("todos");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 8;
 
   // Cargar registros del backend
   useEffect(() => {
-    loadRegistros();
-  }, []);
+    if (puedoVerBitacora) {
+      loadRegistros();
+    } else {
+      setLoading(false);
+    }
+  }, [puedoVerBitacora]);
 
   const loadRegistros = async () => {
     setLoading(true);
@@ -29,7 +37,6 @@ export default function BitacoraModule() {
       setRegistros(data);
       setError(null);
     } catch (err) {
-      console.error('Error al cargar bitácora:', err);
       setError('Error al cargar el registro de auditoría');
       setRegistros([]);
     } finally {
@@ -41,13 +48,14 @@ export default function BitacoraModule() {
   const registrosFiltrados = useMemo(() => {
     return registros.filter((registro) => {
       const textoLibre = busquedaLibre.toLowerCase();
-      const usuarioName = registro.usuario_nombre || registro.usuario || '';
-      const accion = registro.accion || '';
-      const modulo = registro.modulo_afectado || registro.modulo || '';
+      const usuarioName = registro.usuario_nombre || '';
+      const accion = (registro.accion || '').toUpperCase();
+      const modulo = registro.modulo_afectado || '';
       const descripcion = registro.descripcion || '';
-      const ip = registro.direccion_ip || registro.ip_address || '';
-      const dispositivo = registro.dispositivo || '';
+      const ip = registro.direccion_ip || '';
+      const dispositivo = registro.dispositivo || ''; // "Web" o "Mobile"
 
+      // Búsqueda de texto libre
       const coincideTexto =
         String(registro.id).toLowerCase().includes(textoLibre) ||
         usuarioName.toLowerCase().includes(textoLibre) ||
@@ -57,14 +65,16 @@ export default function BitacoraModule() {
         ip.includes(textoLibre) ||
         dispositivo.toLowerCase().includes(textoLibre);
 
+      // Filtro por atributo específico
       const coincideAtributo =
         filtroAtributo === "todos" ||
-        (filtroAtributo === "web" && dispositivo.includes("Web")) ||
-        (filtroAtributo === "movil" && dispositivo.includes("Móvil")) ||
+        (filtroAtributo === "web" && dispositivo === "Web") ||
+        (filtroAtributo === "movil" && dispositivo === "Mobile") ||
         (filtroAtributo === "create" && accion === "CREATE") ||
         (filtroAtributo === "update" && accion === "UPDATE") ||
         (filtroAtributo === "delete" && accion === "DELETE") ||
-        (filtroAtributo === "login" && accion === "LOGIN");
+        (filtroAtributo === "login" && accion === "LOGIN") ||
+        (filtroAtributo === "logout" && accion === "LOGOUT");
 
       return coincideTexto && coincideAtributo;
     });
@@ -97,6 +107,7 @@ export default function BitacoraModule() {
       UPDATE: "bg-blue-100 text-blue-800",
       DELETE: "bg-red-100 text-red-800",
       LOGIN: "bg-purple-100 text-purple-800",
+      LOGOUT: "bg-gray-100 text-gray-800",
     };
     return colores[accion] || "bg-gray-100 text-gray-800";
   };
@@ -171,7 +182,7 @@ export default function BitacoraModule() {
                   <td style="border: 1px solid #d1d5db; padding: 10px;">${modulo}</td>
                   <td style="border: 1px solid #d1d5db; padding: 10px;">${descripcion}</td>
                   <td style="border: 1px solid #d1d5db; padding: 10px; font-family: monospace;">${ip}</td>
-                  <td style="border: 1px solid #d1d5db; padding: 10px;">${dispositivo.includes("Móvil") ? "📱 Móvil" : "🌐 Web"}</td>
+                  <td style="border: 1px solid #d1d5db; padding: 10px;">${dispositivo === "Mobile" ? "📱 Móvil" : "🌐 Web"}</td>
                   <td style="border: 1px solid #d1d5db; padding: 10px;">
                     <div>${new Date(fechaHora).toLocaleDateString("es-BO")}</div>
                     <div style="font-size: 12px; color: #6b7280;">${new Date(fechaHora).toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" })}</div>
@@ -225,6 +236,22 @@ export default function BitacoraModule() {
 
   return (
     <div className="space-y-6">
+      {/* Validar permiso */}
+      {!puedoVerBitacora && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">!</span>
+            </div>
+            <h3 className="text-lg font-semibold text-red-900">Acceso Denegado</h3>
+          </div>
+          <p className="text-sm text-red-700">
+            No tienes permiso para acceder a la bitácora de auditoría. 
+            Contacta al administrador del sistema si necesitas acceso.
+          </p>
+        </div>
+      )}
+
       {/* Encabezado */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Bitácora de Auditoría</h2>
@@ -234,14 +261,15 @@ export default function BitacoraModule() {
       <div className="flex gap-3 mb-4">
         <button
           onClick={descargarPDF}
-          disabled={loading || registrosFiltrados.length === 0}
+          disabled={loading || registrosFiltrados.length === 0 || !puedoVerBitacora}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           Descargar PDF
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {puedoVerBitacora && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         
         {/* Sección de Filtros */}
         <div className="p-4 bg-slate-50 border-b border-gray-200">
@@ -272,6 +300,7 @@ export default function BitacoraModule() {
                 <option value="update">📝 Actualizar</option>
                 <option value="delete">🗑️ Eliminar</option>
                 <option value="login">🔓 Acceso</option>
+                <option value="logout">🔒 Salida</option>
               </optgroup>
             </select>
 
@@ -349,7 +378,7 @@ export default function BitacoraModule() {
                           {ip}
                         </td>
                         <td className="px-4 py-3 text-sm font-semibold text-slate-900">
-                          {dispositivo.includes("Móvil") ? "📱 Móvil" : "🌐 Web"}
+                          {dispositivo === "Mobile" ? "📱 Móvil" : "🌐 Web"}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           <div>{new Date(fechaHora).toLocaleDateString("es-BO")}</div>
@@ -414,7 +443,8 @@ export default function BitacoraModule() {
           </div>
         </div>
 
-      </div>
+        </div>
+      )}
     </div>
   );
 }

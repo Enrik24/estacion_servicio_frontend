@@ -27,11 +27,23 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor para manejar token refresh
+// Response interceptor para manejar token refresh y errores 403
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Manejar error 403 Forbidden
+    if (error.response?.status === 403) {
+      // Disparar evento personalizado que puede ser escuchado globalmente
+      window.dispatchEvent(new CustomEvent('access-denied', {
+        detail: {
+          message: error.response.data?.detail || 'No tienes permiso para acceder a este recurso',
+          endpoint: error.config?.url,
+        }
+      }));
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       // No redirigir si ya estamos en login

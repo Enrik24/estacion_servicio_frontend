@@ -5,35 +5,49 @@ import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
-import { authService } from '../services/api';
+import ErrorMessage from '../components/common/ErrorMessage';
+import { useAuthContext } from '../context/AuthContext';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuthContext();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
     try {
-      await authService.login({
+      const result = await login({
         email: formData.email,
         password: formData.password
       });
-      navigate('/');
-    } catch (error) {
-      console.error('=== ERROR DE INICIO DE SESIÓN ===');
-      console.error('Error completo:', error);
-      console.error('Status:', error.response?.status);
-      console.error('Status Text:', error.response?.statusText);
-      console.error('Data:', error.response?.data);
-      console.error('Message:', error.message);
-      console.error('=================================');
+      
+      if (result.success && result.user) {
+        // Verificar si el usuario tiene rol de Administrador
+        const isAdmin = result.user.roles && result.user.roles.some(r => 
+          (r.nombre || '').toLowerCase().trim() === 'administrador'
+        );
+        
+        // Redirigir según el tipo de usuario
+        if (isAdmin) {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
+      } else {
+        setError(result.error || 'Login failed');
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -111,6 +125,8 @@ function LoginPage() {
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">Acceso al Sistema</h2>
                 <p className="text-gray-600">Ingrese sus credenciales para continuar</p>
               </div>
+
+              {error && <ErrorMessage title="Error de autenticación" message={error} />}
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Input

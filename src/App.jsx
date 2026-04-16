@@ -3,18 +3,30 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminPanel from './pages/AdminPanel';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import GlobalErrorHandler from './components/GlobalErrorHandler';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/admin/*" element={<AdminPanel />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <>
+      <GlobalErrorHandler />
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route 
+            path="/admin/*" 
+            element={
+              <ProtectedAdminRoute>
+                <AdminPanel />
+              </ProtectedAdminRoute>
+            } 
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </>
   );
 }
 
