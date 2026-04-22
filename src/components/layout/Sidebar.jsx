@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -10,15 +10,33 @@ import {
   Key,
   ClipboardList,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Fuel,
+  Clock,
+  ShoppingCart
 } from 'lucide-react';
-
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [adminExpanded, setAdminExpanded] = useState(true);
+  const [ventasExpanded, setVentasExpanded] = useState(true);
+  const [userRole, setUserRole] = useState('');
+
+useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+        try {
+            const user = JSON.parse(userStr);
+            const rol = user.roles_detalle?.[0]?.nombre || '';
+            setUserRole(rol.toLowerCase());
+        } catch (e) {
+            console.error('Error parsing user:', e);
+        }
+    }
+}, []);
   const location = useLocation();
   
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isVentasRoute = location.pathname.startsWith('/ventas');
   
   const menuItems = [
     { path: '/home', label: 'Dashboard', icon: LayoutDashboard },
@@ -29,6 +47,11 @@ function Sidebar() {
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
+  ];
+
+  const ventasSubModules = [
+    { path: '/ventas/turno', label: 'Turno', icon: Clock },
+    { path: '/ventas/registrar', label: 'Registrar venta', icon: ShoppingCart },
   ];
 
   return (
@@ -63,8 +86,59 @@ function Sidebar() {
             {!collapsed && <span className="text-sm">{item.label}</span>}
           </NavLink>
         ))}
+
+        {/* Módulo Ventas */}
+        <div className="pt-4 mt-4 border-t border-slate-800">
+          {!collapsed ? (
+            <>
+              <button
+                onClick={() => setVentasExpanded(!ventasExpanded)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
+                  isVentasRoute ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Fuel className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">Ventas y POS</span>
+                </div>
+                {ventasExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {ventasExpanded && (
+                <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+                  {ventasSubModules.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      className={({ isActive }) => 
+                        `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                          isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                        }`
+                      }
+                    >
+                      <item.icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm">{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <NavLink
+              to="/ventas/turno"
+              className={({ isActive }) => 
+                `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                  isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                }`
+              }
+            >
+              <Fuel className="w-5 h-5 flex-shrink-0" />
+            </NavLink>
+          )}
+        </div>
         
-        {/* Administración y Seguridad Module */}
+        {/* Administración y Seguridad */}
+        {['administrador', 'gerente', 'auditor'].includes(userRole) && (
         <div className="pt-4 mt-4 border-t border-slate-800">
           {!collapsed ? (
             <>
@@ -111,8 +185,9 @@ function Sidebar() {
             >
               <Shield className="w-5 h-5 flex-shrink-0" />
             </NavLink>
-          )}
+        )}
         </div>
+        )}
       </nav>
       
       {!collapsed && (

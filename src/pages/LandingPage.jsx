@@ -9,16 +9,25 @@ function LandingPage() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  useEffect(() => {
-    // Check if user is authenticated
+ useEffect(() => {
     const token = localStorage.getItem('access_token');
-    console.log('=== LANDING PAGE - TOKEN CHECK ===');
-    console.log('Token found:', token);
-    console.log('Token exists:', !!token);
-    console.log('All localStorage keys:', Object.keys(localStorage));
+    const userStr = localStorage.getItem('user');
     setIsAuthenticated(!!token);
-  }, []);
 
+    if (token && userStr) {
+        try {
+            const user = JSON.parse(userStr);
+            const rol = user.roles_detalle?.[0]?.nombre || '';
+            if (rol === 'Operador') {
+                navigate('/ventas/turno');
+            } else if (rol === 'Administrador' || rol === 'Gerente') {
+                navigate('/admin');
+            }
+        } catch (e) {
+            console.error('Error parsing user:', e);
+        }
+    }
+}, []);
   // Callback para cuando el Header cierra sesión
   const handleLogout = () => {
     console.log('=== LANDING PAGE - Logout detectado desde Header ===');
