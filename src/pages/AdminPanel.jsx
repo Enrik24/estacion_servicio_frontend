@@ -5,7 +5,7 @@ import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
-
+import './BitacoraPage.css';
 // Sub-modules
 function UsuariosModule() {
   const [users, setUsers] = useState([]);
@@ -728,145 +728,212 @@ function PermisosModule() {
 }
 
 function BitacoraModule() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState({ usuario: '', modulo: '', fecha: '' });
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [registros, setRegistros] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Estados para filtros y paginación
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterAction, setFilterAction] = useState('todos');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // 1. Cargar datos desde el Backend
   useEffect(() => {
-    loadLogs();
+    const fetchBitacora = async () => {
+      try {
+        setLoading(true);
+        const response = await bitacoraService.getAll();
+        const registrosBackend = response.data.results ? response.data.results : response.data;
+        setRegistros(registrosBackend);
+        setError(null);
+      } catch (err) {
+        console.error(err);
+        setError('No se pudo cargar la bitácora.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBitacora();
   }, []);
 
-  const loadLogs = async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (filter.usuario) params.usuario = filter.usuario;
-      if (filter.modulo) params.modulo = filter.modulo;
-      if (filter.fecha) params.fecha = filter.fecha;
-      
-      const response = await bitacoraService.getAll(params);
-      const logsData = Array.isArray(response.data) ? response.data : response.data.results || [];
-      setLogs(logsData);
-      setCurrentPage(1);
-    } catch (err) {
-      console.error('Error loading logs:', err);
-      setLogs([]);
-    } finally {
-      setLoading(false);
-    }
+  // 2. Lógica de Filtrado
+  const registrosFiltrados = registros.filter((registro) => {
+    const textoLibre = searchTerm.toLowerCase();
+    
+    const coincideTexto = 
+      String(registro.id).toLowerCase().includes(textoLibre) ||
+      (registro.usuario_nombre || '').toLowerCase().includes(textoLibre) ||
+      (registro.usuario_email || '').toLowerCase().includes(textoLibre) ||
+      (registro.usuario_rol || '').toLowerCase().includes(textoLibre) ||
+      (registro.accion || '').toLowerCase().includes(textoLibre) ||
+      (registro.modulo_afectado || '').toLowerCase().includes(textoLibre) ||
+      (registro.descripcion || '').toLowerCase().includes(textoLibre) ||
+      (registro.ip_address || '').includes(textoLibre) ||
+      (registro.user_agent || '').toLowerCase().includes(textoLibre);
+
+    const coincideAtributo = 
+      filterAction === "todos" ||
+      (filterAction === "web" && (registro.user_agent || '').includes("Web")) ||
+      (filterAction === "movil" && (registro.user_agent || '').includes("Móvil")) ||
+      (filterAction === "create" && registro.accion === "CREATE") ||
+      (filterAction === "update" && registro.accion === "UPDATE") ||
+      (filterAction === "delete" && registro.accion === "DELETE") ||
+      (filterAction === "login" && registro.accion === "LOGIN");
+
+    return coincideTexto && coincideAtributo;
+  });
+
+  // 3. Paginación
+  const totalPages = Math.ceil(registrosFiltrados.length / itemsPerPage) || 1;
+  const currentPageSafe = currentPage > totalPages ? 1 : currentPage;
+  const startIndex = (currentPageSafe - 1) * itemsPerPage;
+  const registrosPaginados = registrosFiltrados.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
   };
 
-  const handleFilter = () => {
-    loadLogs();
+  const handleFilter = (e) => {
+    setFilterAction(e.target.value);
+    setCurrentPage(1);
   };
 
-  const filteredLogs = logs.filter(log => 
-    (filter.usuario === '' || (log.usuario_nombre?.toLowerCase() || '').includes(filter.usuario.toLowerCase())) &&
-    (filter.fecha === '' || (log.fecha_hora || '').startsWith(filter.fecha))
-  );
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + itemsPerPage);
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
+  const handleClear = () => {
+    setSearchTerm('');
+    setFilterAction('todos');
+    setCurrentPage(1);
   };
+
+  const getColorAccion = (accion) => {
+    const colores = {
+      CREATE: { bg: '#dcfce7', color: '#166534' },
+      UPDATE: { bg: '#dbeafe', color: '#1e40af' },
+      DELETE: { bg: '#fee2e2', color: '#991b1b' },
+      LOGIN: { bg: '#f3e8ff', color: '#6b21a8' },
+    };
+    return colores[accion] || { bg: '#f3f4f6', color: '#374151' };
+  };
+
+  const formatearFecha = (fechaISO) => {
+    if (!fechaISO) return "N/A";
+    const fecha = new Date(fechaISO);
+    const fechaStr = fecha.toLocaleDateString("es-BO");
+    const horaStr = fecha.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" });
+    return (
+      <div className="date-time">
+        <div>{fechaStr}</div>
+        <div className="time" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{horaStr}</div>
+      </div>
+    );
+  };
+
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando bitácora...</div>;
+  if (error) return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>{error}</div>;
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-slate-900">Bitácora del Sistema</h2>
+    <div className="container">
+      <div className="header">
+        <h1>📊 Bitácora</h1>
+        <p>Registro de movimientos del sistema</p>
+      </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-4 border-b border-gray-200 grid md:grid-cols-3 gap-4">
-          <Input
-            type="text"
-            placeholder="Filtrar por usuario..."
-            value={filter.usuario}
-            onChange={(e) => setFilter({...filter, usuario: e.target.value})}
-          />
-          <Input
-            type="date"
-            value={filter.fecha}
-            onChange={(e) => setFilter({...filter, fecha: e.target.value})}
-          />
-          <Button onClick={handleFilter}>Filtrar</Button>
+      <div className="card">
+        <div className="filters-container">
+          <h3 className="filters-title">🔍 Filtros</h3>
+          <div className="filters-grid">
+            <input 
+              type="text" 
+              value={searchTerm}
+              onChange={handleSearch}
+              className="form-control" 
+              placeholder="Buscar por cualquier dato..."
+            />
+            <select value={filterAction} onChange={handleFilter} className="form-control">
+              <option value="todos">Todos los atributos</option>
+              <optgroup label="Acción">
+                <option value="create">✨ Crear</option>
+                <option value="update">📝 Actualizar</option>
+                <option value="delete">🗑️ Eliminar</option>
+                <option value="login">🔓 Acceso</option>
+              </optgroup>
+            </select>
+            <button onClick={handleClear} className="btn-clear">✕ Limpiar</button>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+        <div className="table-responsive">
+          <table>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha/Hora</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Usuario</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acción</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">IP</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Acción</th>
+                <th style={{ minWidth: '150px' }}>Módulo</th>
+                <th style={{ minWidth: '200px' }}>Descripción</th>
+                <th>Origen (IP)</th>
+                <th>Dispositivo</th>
+                <th>Fecha/Hora</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {paginatedLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-600">{log.fecha_hora ? new Date(log.fecha_hora).toLocaleString('es-ES') : '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{log.usuario_nombre}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{log.usuario_email}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{log.accion}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 font-mono">{log.ip_address}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      log.estado === 'EXITO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {log.estado}
-                    </span>
+            <tbody>
+              {registrosPaginados.length > 0 ? (
+                registrosPaginados.map((registro) => {
+                  const colors = getColorAccion(registro.accion);
+                  const iconoDispositivo = (registro.user_agent || '').includes("Mobile") || (registro.user_agent || '').includes("Android") ? "📱 Móvil" : "🌐 Web";
+
+                  return (
+                    <tr key={registro.id}>
+                      <td style={{ fontWeight: '600', color: '#64748b' }}>{registro.id}</td>
+                      <td style={{ fontWeight: '600' }}>{registro.usuario_nombre || 'Sistema'}</td>
+                      <td style={{ color: '#64748b' }}>{registro.usuario_email || 'N/A'}</td> 
+                      <td>
+                        <span style={{ 
+                          padding: '0.2rem 0.5rem', 
+                          borderRadius: '0.25rem', 
+                          fontSize: '0.75rem', 
+                          backgroundColor: '#f1f5f9', 
+                          color: '#475569',
+                          fontWeight: '600' 
+                        }}>
+                          {registro.usuario_rol || 'Sin Rol'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ backgroundColor: colors.bg, color: colors.color, padding: '0.3rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.7rem', fontWeight: '700' }}>
+                          {registro.accion}
+                        </span>
+                      </td>
+                      <td>{registro.modulo_afectado}</td>
+                      <td style={{ color: '#475569' }}>{registro.descripcion}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#4f46e5', fontWeight: '500' }}>{registro.ip_address}</td>
+                      <td style={{ fontWeight: '600' }}>{iconoDispositivo}</td>
+                      <td>{formatearFecha(registro.fecha_hora)}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                    No hay registros que coincidan con los filtros aplicados.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-        {/* Pagination for Bitácora */}
-        {filteredLogs.length > itemsPerPage && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredLogs.length)} de {filteredLogs.length} registros
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Anterior
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-1 text-sm rounded ${
-                    currentPage === page
-                      ? 'bg-emerald-500 text-white'
-                      : 'border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Siguiente
-              </button>
-            </div>
+
+        <div className="footer">
+          <div style={{ marginBottom: '0.5rem' }}>
+            <button disabled={currentPageSafe === 1} onClick={() => setCurrentPage(c => c - 1)} style={{ marginRight: '0.5rem' }}>← Anterior</button>
+            <button disabled={currentPageSafe === totalPages} onClick={() => setCurrentPage(c => c + 1)} style={{ marginLeft: '0.5rem' }}>Siguiente →</button>
           </div>
-        )}
+          Página <strong>{currentPageSafe}</strong> de <strong>{totalPages}</strong> | Mostrando <strong>{registrosPaginados.length}</strong> de <strong>{registrosFiltrados.length}</strong> registros
+        </div>
       </div>
     </div>
   );
