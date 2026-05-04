@@ -577,10 +577,6 @@ function PermisosModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingPerm, setEditingPerm] = useState(null);
   const [formData, setFormData] = useState({ codigo: '', nombre: '', descripcion: '' });
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   useEffect(() => {
     loadPermissions();
@@ -592,9 +588,7 @@ function PermisosModule() {
       const response = await permisosService.getAll();
       const permsData = Array.isArray(response.data) ? response.data : response.data.results || [];
       setPermissions(permsData);
-      setCurrentPage(1);
     } catch (err) {
-      console.error('Error loading permissions:', err);
       setPermissions([]);
     } finally {
       setLoading(false);
@@ -635,105 +629,62 @@ function PermisosModule() {
     }
   };
 
-  // Group permissions by module first
-  const groupedPerms = permissions.reduce((acc, perm) => {
-    const modulo = perm.modulo || 'General';
+  // Agrupar por módulo según el prefijo del código
+  const getModulo = (codigo) => {
+    const prefijo = codigo.split('.')[0];
+    const modulos = {
+      usuarios: 'Usuarios',
+      roles: 'Roles',
+      permisos: 'Permisos',
+      bitacora: 'Bitácora',
+      turnos: 'Turnos',
+      ventas: 'Ventas',
+      surtidores: 'Surtidores',
+      clientes: 'Clientes',
+    };
+    return modulos[prefijo] || 'General';
+  };
+
+  const grouped = permissions.reduce((acc, perm) => {
+    const modulo = getModulo(perm.codigo);
     if (!acc[modulo]) acc[modulo] = [];
     acc[modulo].push(perm);
     return acc;
   }, {});
 
-  // Pagination logic - flatten grouped permissions
-  const flatPerms = Object.entries(groupedPerms).flatMap(([modulo, perms]) =>
-    perms.map(p => ({ ...p, modulo }))
-  );
-  const totalPages = Math.ceil(flatPerms.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPerms = flatPerms.slice(startIndex, startIndex + itemsPerPage);
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900">Gestión de Permisos</h2>
-        <div className="mt-4">
-          <Button onClick={() => setShowModal(true)} fullWidth={false} size="small">Nuevo Permiso</Button>
-        </div>
+        <Button onClick={() => { setEditingPerm(null); setFormData({ codigo: '', nombre: '', descripcion: '' }); setShowModal(true); }} fullWidth={false} size="small">
+          Nuevo Permiso
+        </Button>
       </div>
 
-      <div className="space-y-6">
-        {paginatedPerms.map((perm) => (
-          <div key={perm.id} className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-xl flex justify-between">
-              <h3 className="font-semibold text-slate-900">{perm.modulo}</h3>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(grouped).map(([modulo, perms]) => (
+          <div key={modulo} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-slate-700">{modulo}</h3>
+              <p className="text-xs text-gray-400">{perms.length} permiso{perms.length !== 1 ? 's' : ''}</p>
             </div>
-            <div className="divide-y divide-gray-200">
-              <div className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
-                <div>
-                  <h4 className="font-medium text-slate-900">{perm.nombre}</h4>
-                  <p className="text-sm text-gray-600">{perm.descripcion}</p>
-                  {perm.codigo && <p className="text-xs text-gray-400 mt-1">Código: {perm.codigo}</p>}
-                </div>
-                <div className="space-x-2">
-                  <button 
-                    onClick={() => handleEdit(perm)}
-                    className="text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    Editar
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(perm.id)}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ul className="divide-y divide-gray-100">
+              {perms.map((perm) => (
+                <li key={perm.id} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{perm.nombre}</p>
+                    <p className="text-xs text-gray-400 font-mono">{perm.codigo}</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => handleEdit(perm)} className="text-xs text-blue-600 hover:text-blue-800">Editar</button>
+                    <button onClick={() => handleDelete(perm.id)} className="text-xs text-red-500 hover:text-red-700">Eliminar</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         ))}
       </div>
-
-      {/* Pagination for Permissions */}
-      {flatPerms.length > itemsPerPage && (
-        <div className="flex items-center justify-between pt-4">
-          <div className="text-sm text-gray-500">
-            Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, flatPerms.length)} de {flatPerms.length} registros
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Anterior
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`px-3 py-1 text-sm rounded ${
-                  currentPage === page
-                    ? 'bg-emerald-500 text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
-      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -745,7 +696,7 @@ function PermisosModule() {
                   label="Código"
                   value={formData.codigo}
                   onChange={(e) => setFormData({...formData, codigo: e.target.value})}
-                  placeholder="ej: usuarios.view"
+                  placeholder="ej: usuarios.ver"
                   required
                 />
               )}
@@ -761,8 +712,7 @@ function PermisosModule() {
                   value={formData.descripcion}
                   onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
                   className="block w-full border border-gray-300 rounded-lg px-3 py-2"
-                  rows={3}
-                  required
+                  rows={2}
                 />
               </div>
               <div className="flex space-x-3 pt-4">
