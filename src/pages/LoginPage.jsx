@@ -21,22 +21,28 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      await authService.login({
+    const response = await authService.login({
         email: formData.email,
         password: formData.password
-      });
-      navigate('/');
-    } catch (error) {
-      console.error('=== ERROR DE INICIO DE SESIÓN ===');
-      console.error('Error completo:', error);
-      console.error('Status:', error.response?.status);
-      console.error('Status Text:', error.response?.statusText);
-      console.error('Data:', error.response?.data);
-      console.error('Message:', error.message);
-      console.error('=================================');
-    } finally {
-      setLoading(false);
+    });
+
+    const user = response.user;
+    const rol = user?.roles_detalle?.[0]?.nombre || '';
+
+    if (rol === 'Administrador') {
+        navigate('/admin');
+    } else if (rol === 'Gerente') {
+        navigate('/gerente');
+    } else if (rol === 'Operador') {
+        navigate('/ventas/turno');
+    } else if (rol === 'Auditor') {
+        navigate('/admin/bitacora');
+    } else {
+        navigate('/dashboard');
     }
+} catch (error) {
+    console.error('Error de inicio de sesión:', error);
+}
   };
 
   const handleChange = (e) => {
