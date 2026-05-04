@@ -959,4 +959,5 @@ function AdminPanel() {
   );
 }
 
+export { BitacoraModule };
 export default AdminPanel;
