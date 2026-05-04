@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminPanel from './pages/AdminPanel';
 import VentasPanel from './pages/VentasPage';
+import BitacoraPage from './pages/BitacoraPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/admin/*" element={<AdminPanel />} />
         <Route path="/ventas/*" element={<VentasPanel />} />
+        <Route path="/bitacora" element={<BitacoraPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
