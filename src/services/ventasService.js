@@ -1,8 +1,17 @@
 import apiClient from './api';
 
-export const surtidoresService = {
-    getAll: () => apiClient.get('/surtidores/'),
-    getOne: (id) => apiClient.get(`/surtidores/${id}/`),
+export const islasService = {
+    getAll: () => apiClient.get('/islas/'),
+    getOne: (id) => apiClient.get(`/islas/${id}/`),
+};
+
+export const ladosService = {
+    getAll: () => apiClient.get('/lados/'),
+    getPorIsla: (islaId) => apiClient.get(`/lados/?isla=${islaId}`),
+};
+
+export const tiposCombustibleService = {
+    getAll: () => apiClient.get('/tipos-combustible/'),
 };
 
 export const turnosService = {
