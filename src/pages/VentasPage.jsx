@@ -458,7 +458,7 @@ function RegistrarVentaModule() {
                                     <option value="">Selecciona el lado</option>
                                     {lados.map(l => (
                                         <option key={l.id} value={l.id}>
-                                            Lado {l.lado}
+                                            {l.nombre_completo}
                                         </option>
                                     ))}
                                 </select>

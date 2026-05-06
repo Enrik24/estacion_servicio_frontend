@@ -32,3 +32,10 @@ export const ventasService = {
     registrar: (data) => apiClient.post('/ventas/', data),
     anular: (id) => apiClient.post(`/ventas/${id}/anular/`),
 };
+export const sucursalesService = {
+    getAll: () => apiClient.get('/sucursales/'),
+    getOne: (id) => apiClient.get(`/sucursales/${id}/`),
+    crear: (data) => apiClient.post('/sucursales/', data),
+    actualizar: (id, data) => apiClient.put(`/sucursales/${id}/`, data),
+    eliminar: (id) => apiClient.delete(`/sucursales/${id}/`),
+};

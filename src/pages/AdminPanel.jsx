@@ -4,6 +4,8 @@ import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import MapaPicker from '../components/MapaPicker';
+import { sucursalesService } from '../services/sucursalesService';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
 import './BitacoraPage.css';
 // Sub-modules
@@ -16,7 +18,7 @@ function UsuariosModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' });
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -69,7 +71,7 @@ function UsuariosModule() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate password match
     if (formData.password || formData.confirmPassword) {
       if (formData.password !== formData.confirmPassword) {
@@ -77,13 +79,13 @@ function UsuariosModule() {
         return;
       }
     }
-    
+
     // For new user, password is required
     if (!editingUser && !formData.password) {
       alert('La contraseña es obligatoria para nuevos usuarios');
       return;
     }
-    
+
     try {
       let userId;
       if (editingUser) {
@@ -101,12 +103,12 @@ function UsuariosModule() {
         const response = await usuariosService.create({ ...userData, is_active: formData.is_active });
         userId = response.data.id;
       }
-      
+
       // Assign role using the specific endpoint
       if (formData.rol) {
         await usuariosService.asignarRoles(userId, [parseInt(formData.rol)]);
       }
-      
+
       await loadUsers();
       setShowModal(false);
       setEditingUser(null);
@@ -127,11 +129,11 @@ function UsuariosModule() {
       // Fallback to roles array (IDs)
       userRol = user.roles[0];
     }
-    setFormData({ 
-      nombre: user.nombre || '', 
-      email: user.email || '', 
-      rol: userRol, 
-      is_active: user.is_active !== undefined ? user.is_active : true, 
+    setFormData({
+      nombre: user.nombre || '',
+      email: user.email || '',
+      rol: userRol,
+      is_active: user.is_active !== undefined ? user.is_active : true,
       password: '',
       confirmPassword: ''
     });
@@ -201,9 +203,8 @@ function UsuariosModule() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
                       {user.is_active ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
@@ -234,11 +235,10 @@ function UsuariosModule() {
                 <button
                   key={page}
                   onClick={() => handlePageChange(page)}
-                  className={`px-3 py-1 text-sm rounded ${
-                    currentPage === page
+                  className={`px-3 py-1 text-sm rounded ${currentPage === page
                       ? 'bg-emerald-500 text-white'
                       : 'border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   {page}
                 </button>
@@ -263,14 +263,14 @@ function UsuariosModule() {
               <Input
                 label="Nombre Completo"
                 value={formData.nombre}
-                onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                 required
               />
               <Input
                 label="Email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
               />
               {editingUser && (
@@ -279,13 +279,13 @@ function UsuariosModule() {
                     label="Contraseña (opcional - dejar en blanco para mantener actual)"
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
                   <Input
                     label="Confirmar Contraseña"
                     type="password"
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   />
                 </>
               )}
@@ -295,14 +295,14 @@ function UsuariosModule() {
                     label="Contraseña"
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required
                   />
                   <Input
                     label="Confirmar Contraseña"
                     type="password"
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     required
                   />
                 </>
@@ -311,7 +311,7 @@ function UsuariosModule() {
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Rol</label>
                 <select
                   value={formData.rol}
-                  onChange={(e) => setFormData({...formData, rol: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                   className="block w-full border border-gray-300 rounded-lg px-3 py-2"
                   required
                 >
@@ -327,7 +327,7 @@ function UsuariosModule() {
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Estado</label>
                 <select
                   value={formData.is_active === true ? 'Activo' : 'Inactivo'}
-                  onChange={(e) => setFormData({...formData, is_active: e.target.value === 'Activo'})}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'Activo' })}
                   className="block w-full border border-gray-300 rounded-lg px-3 py-2"
                 >
                   <option value="Activo">Activo</option>
@@ -353,7 +353,7 @@ function RolesModule() {
   const [showModal, setShowModal] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [formData, setFormData] = useState({ nombre: '', descripcion: '', permisos: [] });
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
@@ -448,13 +448,13 @@ function RolesModule() {
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-bold text-slate-900">{role.nombre}</h3>
               <div className="space-x-2">
-                <button 
-                  onClick={() => { setEditingRole(role); setFormData({...role, permisos: role.permisos || []}); setShowModal(true); }}
+                <button
+                  onClick={() => { setEditingRole(role); setFormData({ ...role, permisos: role.permisos || [] }); setShowModal(true); }}
                   className="text-blue-600 hover:text-blue-800 text-sm"
                 >
                   Editar
                 </button>
-                <button 
+                <button
                   onClick={() => handleDelete(role.id)}
                   className="text-red-600 hover:text-red-800 text-sm"
                 >
@@ -500,11 +500,10 @@ function RolesModule() {
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-1 text-sm rounded ${
-                  currentPage === page
+                className={`px-3 py-1 text-sm rounded ${currentPage === page
                     ? 'bg-emerald-500 text-white'
                     : 'border border-gray-300 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {page}
               </button>
@@ -528,14 +527,14 @@ function RolesModule() {
               <Input
                 label="Nombre del Rol"
                 value={formData.nombre}
-                onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                 required
               />
               <div>
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Descripción</label>
                 <textarea
                   value={formData.descripcion}
-                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   className="block w-full border border-gray-300 rounded-lg px-3 py-2"
                   rows={3}
                 />
@@ -695,7 +694,7 @@ function PermisosModule() {
                 <Input
                   label="Código"
                   value={formData.codigo}
-                  onChange={(e) => setFormData({...formData, codigo: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                   placeholder="ej: usuarios.ver"
                   required
                 />
@@ -703,14 +702,14 @@ function PermisosModule() {
               <Input
                 label="Nombre del Permiso"
                 value={formData.nombre}
-                onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                 required
               />
               <div>
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Descripción</label>
                 <textarea
                   value={formData.descripcion}
-                  onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   className="block w-full border border-gray-300 rounded-lg px-3 py-2"
                   rows={2}
                 />
@@ -761,8 +760,8 @@ function BitacoraModule() {
   // 2. Lógica de Filtrado
   const registrosFiltrados = registros.filter((registro) => {
     const textoLibre = searchTerm.toLowerCase();
-    
-    const coincideTexto = 
+
+    const coincideTexto =
       String(registro.id).toLowerCase().includes(textoLibre) ||
       (registro.usuario_nombre || '').toLowerCase().includes(textoLibre) ||
       (registro.usuario_email || '').toLowerCase().includes(textoLibre) ||
@@ -773,7 +772,7 @@ function BitacoraModule() {
       (registro.ip_address || '').includes(textoLibre) ||
       (registro.user_agent || '').toLowerCase().includes(textoLibre);
 
-    const coincideAtributo = 
+    const coincideAtributo =
       filterAction === "todos" ||
       (filterAction === "web" && (registro.user_agent || '').includes("Web")) ||
       (filterAction === "movil" && (registro.user_agent || '').includes("Móvil")) ||
@@ -844,11 +843,11 @@ function BitacoraModule() {
         <div className="filters-container">
           <h3 className="filters-title">🔍 Filtros</h3>
           <div className="filters-grid">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchTerm}
               onChange={handleSearch}
-              className="form-control" 
+              className="form-control"
               placeholder="Buscar por cualquier dato..."
             />
             <select value={filterAction} onChange={handleFilter} className="form-control">
@@ -890,15 +889,15 @@ function BitacoraModule() {
                     <tr key={registro.id}>
                       <td style={{ fontWeight: '600', color: '#64748b' }}>{registro.id}</td>
                       <td style={{ fontWeight: '600' }}>{registro.usuario_nombre || 'Sistema'}</td>
-                      <td style={{ color: '#64748b' }}>{registro.usuario_email || 'N/A'}</td> 
+                      <td style={{ color: '#64748b' }}>{registro.usuario_email || 'N/A'}</td>
                       <td>
-                        <span style={{ 
-                          padding: '0.2rem 0.5rem', 
-                          borderRadius: '0.25rem', 
-                          fontSize: '0.75rem', 
-                          backgroundColor: '#f1f5f9', 
+                        <span style={{
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.75rem',
+                          backgroundColor: '#f1f5f9',
                           color: '#475569',
-                          fontWeight: '600' 
+                          fontWeight: '600'
                         }}>
                           {registro.usuario_rol || 'Sin Rol'}
                         </span>
@@ -938,7 +937,225 @@ function BitacoraModule() {
     </div>
   );
 }
+function SucursalesModule() {
+  const [sucursales, setSucursales] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [error, setError] = useState('');
+  const [exito, setExito] = useState('');
+  const [formData, setFormData] = useState({
+    nombre: '',
+    direccion: '',
+    telefono: '',
+    nit: '',
+    cantidad_islas: 1,
+    tiene_gnv: false,
+    estado: 'ACTIVA',
+    latitud: '',
+    longitud: ''
+  });
 
+  useEffect(() => {
+    cargarSucursales();
+  }, []);
+
+  const cargarSucursales = async () => {
+    setLoading(true);
+    try {
+      const response = await sucursalesService.getAll();
+      const data = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setSucursales(data);
+    } catch (err) {
+      console.error('Error cargando sucursales:', err);
+      setSucursales([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setExito('');
+    try {
+      if (editando) {
+        await sucursalesService.actualizar(editando.id, formData);
+        setExito('Sucursal actualizada correctamente');
+      } else {
+        await sucursalesService.crear(formData);
+        setExito('Sucursal creada correctamente');
+      }
+      setShowModal(false);
+      setEditando(null);
+      resetForm();
+      cargarSucursales();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al guardar sucursal');
+    }
+  };
+
+  const handleEditar = (sucursal) => {
+    setEditando(sucursal);
+    setFormData({
+      nombre: sucursal.nombre || '',
+      direccion: sucursal.direccion || '',
+      telefono: sucursal.telefono || '',
+      nit: sucursal.nit || '',
+      cantidad_islas: sucursal.cantidad_islas || 1,
+      tiene_gnv: sucursal.tiene_gnv || false,
+      estado: sucursal.estado || 'ACTIVA',
+      latitud: sucursal.latitud || '',
+      longitud: sucursal.longitud || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleEliminar = async (id) => {
+    if (!confirm('¿Está seguro de eliminar esta sucursal?')) return;
+    try {
+      await sucursalesService.eliminar(id);
+      setExito('Sucursal eliminada correctamente');
+      cargarSucursales();
+    } catch (err) {
+      setError('Error al eliminar sucursal');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nombre: '', direccion: '', telefono: '', nit: '',
+      cantidad_islas: 1, tiene_gnv: false, estado: 'ACTIVA',
+      latitud: '', longitud: ''
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-2xl font-bold text-slate-900">Gestión de Sucursales</h2>
+        <Button onClick={() => { resetForm(); setEditando(null); setShowModal(true); }} fullWidth={false} size="small">
+          Nueva Sucursal
+        </Button>
+      </div>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-2 text-sm">{error}</div>}
+      {exito && <div className="bg-green-50 border border-green-200 text-green-600 rounded-lg px-4 py-2 text-sm">{exito}</div>}
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-400 text-sm">Cargando sucursales...</div>
+      ) : sucursales.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+          <p className="text-gray-400 text-sm">No hay sucursales registradas</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sucursales.map(s => (
+            <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-900">{s.nombre}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{s.direccion}</p>
+                </div>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${s.estado === 'ACTIVA' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                  {s.estado}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-gray-400 uppercase font-semibold">Islas</p>
+                  <p className="text-slate-800 font-medium mt-0.5">{s.cantidad_islas}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-gray-400 uppercase font-semibold">GNV</p>
+                  <p className="text-slate-800 font-medium mt-0.5">{s.tiene_gnv ? 'Sí' : 'No'}</p>
+                </div>
+                {s.telefono && (
+                  <div className="bg-gray-50 rounded-lg p-2">
+                    <p className="text-gray-400 uppercase font-semibold">Teléfono</p>
+                    <p className="text-slate-800 font-medium mt-0.5">{s.telefono}</p>
+                  </div>
+                )}
+                {s.nit && (
+                  <div className="bg-gray-50 rounded-lg p-2">
+                    <p className="text-gray-400 uppercase font-semibold">NIT</p>
+                    <p className="text-slate-800 font-medium mt-0.5">{s.nit}</p>
+                  </div>
+                )}
+              </div>
+
+              {s.cantidad_islas_creadas !== undefined && (
+                <p className="text-xs text-gray-400">
+                  {s.cantidad_islas_creadas} isla{s.cantidad_islas_creadas !== 1 ? 's' : ''} creada{s.cantidad_islas_creadas !== 1 ? 's' : ''}
+                </p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => handleEditar(s)} className="text-xs text-blue-600 hover:text-blue-800">Editar</button>
+                <button onClick={() => handleEliminar(s.id)} className="text-xs text-red-500 hover:text-red-700">Eliminar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-4">{editando ? 'Editar Sucursal' : 'Nueva Sucursal'}</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Nombre de la sucursal</label>
+                  <input value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} required className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none" placeholder="Ej: Surtidor Bolivia - Norte" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Dirección</label>
+                  <input value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} required className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none" placeholder="Ej: Av. Banzer Km 5, Santa Cruz" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Teléfono</label>
+                  <input value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none" placeholder="Ej: 3-4567890" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">NIT</label>
+                  <input value={formData.nit} onChange={e => setFormData({ ...formData, nit: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none" placeholder="Ej: 1234567890" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Cantidad de islas</label>
+                  <input type="number" min="1" max="20" value={formData.cantidad_islas} onChange={e => setFormData({ ...formData, cantidad_islas: parseInt(e.target.value) })} required className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Estado</label>
+                  <select value={formData.estado} onChange={e => setFormData({ ...formData, estado: e.target.value })} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none">
+                    <option value="ACTIVA">Activa</option>
+                    <option value="INACTIVA">Inactiva</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <MapaPicker
+                    latitud={formData.latitud}
+                    longitud={formData.longitud}
+                    onSelect={(lat, lng) => setFormData({ ...formData, latitud: lat, longitud: lng })}
+                  />
+                </div>
+                <div className="sm:col-span-2 flex items-center gap-3">
+                  <input type="checkbox" id="tiene_gnv" checked={formData.tiene_gnv} onChange={e => setFormData({ ...formData, tiene_gnv: e.target.checked })} className="h-4 w-4 text-emerald-500 rounded" />
+                  <label htmlFor="tiene_gnv" className="text-sm text-gray-700">Esta sucursal tiene GNV</label>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="submit">Guardar</Button>
+                <Button type="button" onClick={() => setShowModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function AdminPanel() {
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -951,6 +1168,7 @@ function AdminPanel() {
             <Route path="usuarios" element={<UsuariosModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
+            <Route path="sucursales" element={<SucursalesModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
           </Routes>
         </main>
