@@ -14,13 +14,6 @@ export const tiposCombustibleService = {
     getAll: () => apiClient.get('/tipos-combustible/'),
 };
 
-export const turnosService = {
-    getAll: () => apiClient.get('/turnos/'),
-    getMiTurno: () => apiClient.get('/turnos/mi_turno/'),
-    abrir: (data) => apiClient.post('/turnos/', data),
-    cerrar: (id, data) => apiClient.post(`/turnos/${id}/cerrar/`, data),
-};
-
 export const clientesService = {
     getAll: () => apiClient.get('/clientes/'),
     getOne: (id) => apiClient.get(`/clientes/${id}/`),
@@ -38,4 +31,18 @@ export const sucursalesService = {
     crear: (data) => apiClient.post('/sucursales/', data),
     actualizar: (id, data) => apiClient.put(`/sucursales/${id}/`, data),
     eliminar: (id) => apiClient.delete(`/sucursales/${id}/`),
+};
+export const turnosService = {
+    getAll: () => apiClient.get('/turnos/'),
+    getMiTurno: () => apiClient.get('/turnos/mi_turno/'),
+    getResumen: (fecha, horario) => {
+        let url = '/turnos/resumen/';
+        const params = [];
+        if (fecha) params.push(`fecha=${fecha}`);
+        if (horario) params.push(`horario=${horario}`);
+        if (params.length) url += '?' + params.join('&');
+        return apiClient.get(url);
+    },
+    abrir: (data) => apiClient.post('/turnos/', data),
+    cerrar: (id, data) => apiClient.post(`/turnos/${id}/cerrar/`, data),
 };

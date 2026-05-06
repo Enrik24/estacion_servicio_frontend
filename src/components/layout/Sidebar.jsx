@@ -53,8 +53,7 @@ useEffect(() => {
   ];
 
   const ventasSubModules = [
-    { path: '/ventas/turno', label: 'Turno', icon: Clock },
-    { path: '/ventas/registrar', label: 'Registrar venta', icon: ShoppingCart },
+   { path: '/admin/turnos', label: 'Turnos y Ventas', icon: ShoppingCart },
   ];
   const sucursalesSubModules = [
       { path: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
@@ -191,6 +190,7 @@ useEffect(() => {
         )}
     </div>
 )}
+
         {/* Administración y Seguridad */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
         <div className="pt-4 mt-4 border-t border-slate-800">

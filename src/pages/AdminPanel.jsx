@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import MapaPicker from '../components/MapaPicker';
 import { sucursalesService } from '../services/sucursalesService';
+import { turnosService, ventasService } from '../services/ventasService';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
 import './BitacoraPage.css';
 // Sub-modules
@@ -1156,6 +1157,222 @@ function SucursalesModule() {
     </div>
   );
 }
+function TurnosAdminModule() {
+    const [turnos, setTurnos] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+    const [horario, setHorario] = useState('');
+    const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
+    const [ventas, setVentas] = useState([]);
+    const [loadingVentas, setLoadingVentas] = useState(false);
+
+    useEffect(() => {
+        cargarTurnos();
+    }, [fecha, horario]);
+
+    const cargarTurnos = async () => {
+        setLoading(true);
+        try {
+            const response = await turnosService.getResumen(fecha, horario);
+            setTurnos(Array.isArray(response.data) ? response.data : []);
+        } catch (err) {
+            console.error('Error cargando turnos:', err);
+            setTurnos([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const verVentas = async (turno) => {
+        setTurnoSeleccionado(turno);
+        setLoadingVentas(true);
+        try {
+            const response = await ventasService.getAll();
+            const data = Array.isArray(response.data) ? response.data : response.data.results || [];
+            setVentas(data.filter(v => v.turno === turno.id));
+        } catch (err) {
+            console.error('Error cargando ventas:', err);
+            setVentas([]);
+        } finally {
+            setLoadingVentas(false);
+        }
+    };
+
+    const totalGeneral = turnos.reduce((acc, t) => acc + t.total_ventas, 0).toFixed(2);
+    const litrosGeneral = turnos.reduce((acc, t) => acc + t.total_litros, 0).toFixed(3);
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Resumen de Turnos</h2>
+
+            {/* Filtros */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Fecha</label>
+                        <input
+                            type="date"
+                            value={fecha}
+                            onChange={e => setFecha(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Horario</label>
+                        <select
+                            value={horario}
+                            onChange={e => setHorario(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none"
+                        >
+                            <option value="">Todos los turnos</option>
+                            <option value="MANANA">Mañana 06:00 - 14:00</option>
+                            <option value="TARDE">Tarde 14:00 - 22:00</option>
+                            <option value="NOCHE">Noche 22:00 - 06:00</option>
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={cargarTurnos}
+                            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 text-sm hover:bg-slate-700 transition"
+                        >
+                            Actualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Turnos</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.length}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Ventas totales</p>
+                    <p className="text-2xl font-bold text-emerald-600 mt-1">Bs. {totalGeneral}</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Litros totales</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{litrosGeneral} Lt</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <p className="text-xs text-gray-500 uppercase font-semibold">Transacciones</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + t.cantidad_ventas, 0)}</p>
+                </div>
+            </div>
+
+            {/* Lista de turnos */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                    <h3 className="font-semibold text-slate-900">Turnos del día</h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Operador</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Isla</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Horario</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Apertura</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Ventas</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">Cargando...</td>
+                                </tr>
+                            ) : turnos.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No hay turnos para esta fecha</td>
+                                </tr>
+                            ) : (
+                                turnos.map(t => (
+                                    <tr key={t.id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 text-slate-800 font-medium">{t.operador}</td>
+                                        <td className="px-4 py-3 text-gray-600">Isla {t.isla}</td>
+                                        <td className="px-4 py-3 text-gray-600">{t.horario}</td>
+                                        <td className="px-4 py-3 text-gray-600 text-xs">{new Date(t.fecha_apertura).toLocaleTimeString('es-BO')}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${t.estado === 'ABIERTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                {t.estado}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas}</td>
+                                        <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {t.total_ventas.toFixed(2)}</td>
+                                        <td className="px-4 py-3">
+                                            <button
+                                                onClick={() => verVentas(t)}
+                                                className="text-xs text-blue-600 hover:text-blue-800"
+                                            >
+                                                Ver ventas
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Detalle de ventas del turno seleccionado */}
+            {turnoSeleccionado && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-900">
+                            Ventas — {turnoSeleccionado.operador} / Isla {turnoSeleccionado.isla} / {turnoSeleccionado.horario}
+                        </h3>
+                        <button onClick={() => setTurnoSeleccionado(null)} className="text-xs text-gray-400 hover:text-gray-600">Cerrar</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Comprobante</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Lado</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Combustible</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Pago</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {loadingVentas ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Cargando...</td>
+                                    </tr>
+                                ) : ventas.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">No hay ventas en este turno</td>
+                                    </tr>
+                                ) : (
+                                    ventas.map(v => (
+                                        <tr key={v.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 font-mono text-xs text-gray-600">{v.numero_comprobante}</td>
+                                            <td className="px-4 py-3 text-gray-600">Lado {v.lado_nombre}</td>
+                                            <td className="px-4 py-3 text-gray-800">{v.tipo_combustible_nombre}</td>
+                                            <td className="px-4 py-3 text-gray-800">{v.litros} Lt</td>
+                                            <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {v.total}</td>
+                                            <td className="px-4 py-3">
+                                                <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{v.metodo_pago}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs text-gray-500">{new Date(v.fecha_hora).toLocaleTimeString('es-BO')}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 function AdminPanel() {
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -1169,6 +1386,7 @@ function AdminPanel() {
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
             <Route path="sucursales" element={<SucursalesModule />} />
+            <Route path="turnos" element={<TurnosAdminModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
           </Routes>
         </main>
