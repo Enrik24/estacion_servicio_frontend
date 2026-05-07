@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
 import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
+import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
 
 // Sub-modules
 function UsuariosModule() {
@@ -934,6 +935,7 @@ function AdminPanel() {
             <Route path="/" element={<Navigate to="usuarios" replace />} />
             <Route path="usuarios" element={<UsuariosModule />} />
             <Route path="clientes-limites" element={<ClientesLimitesModule />} />
+            <Route path="predicciones-ia" element={<PrediccionesIAModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
