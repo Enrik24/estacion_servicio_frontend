@@ -9,6 +9,7 @@ import {
   UserCog,
   Key,
   ClipboardList,
+  Gauge,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -26,6 +27,7 @@ function Sidebar() {
 
   const adminSubModules = [
     { path: '/admin/usuarios', label: 'Usuarios', icon: Users },
+    { path: '/admin/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },

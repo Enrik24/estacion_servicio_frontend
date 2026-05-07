@@ -5,6 +5,7 @@ import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
+import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
 
 // Sub-modules
 function UsuariosModule() {
@@ -932,6 +933,7 @@ function AdminPanel() {
           <Routes>
             <Route path="/" element={<Navigate to="usuarios" replace />} />
             <Route path="usuarios" element={<UsuariosModule />} />
+            <Route path="clientes-limites" element={<ClientesLimitesModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />

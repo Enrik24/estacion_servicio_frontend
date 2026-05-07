@@ -85,3 +85,5 @@ export { usuariosService } from './usuariosService.js';
 export { rolesService } from './rolesService.js';
 export { permisosService } from './permisosService.js';
 export { bitacoraService } from './bitacoraService.js';
+export { clientesService } from './clientesService.js';
+export { limitesConsumoService } from './limitesConsumoService.js';
