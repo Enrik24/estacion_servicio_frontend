@@ -52,9 +52,10 @@ useEffect(() => {
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
   ];
 
-  const ventasSubModules = [
-   { path: '/admin/turnos', label: 'Turnos y Ventas', icon: ShoppingCart },
-  ];
+ const ventasSubModules = [
+    { path: '/ventas/turno', label: 'Turno', icon: Clock },
+    { path: '/ventas/registrar', label: 'Registrar venta', icon: ShoppingCart },
+];
   const sucursalesSubModules = [
       { path: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
   ];
@@ -91,55 +92,50 @@ useEffect(() => {
           </NavLink>
         ))}
 
-        {/* Módulo Ventas */}
-        <div className="pt-4 mt-4 border-t border-slate-800">
-          {!collapsed ? (
-            <>
-              <button
-                onClick={() => setVentasExpanded(!ventasExpanded)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
-                  isVentasRoute ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Fuel className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-sm font-medium">Ventas y POS</span>
-                </div>
-                {ventasExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
+        {['operador'].includes(userRole) && (
+  <div className="pt-4 mt-4 border-t border-slate-800">
+    {!collapsed ? (
+      <>
+        <button
+          onClick={() => setVentasExpanded(!ventasExpanded)}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${isVentasRoute ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'}`}
+        >
+          <div className="flex items-center space-x-3">
+            <Fuel className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">Ventas y POS</span>
+          </div>
+          {ventasExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
 
-              {ventasExpanded && (
-                <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
-                  {ventasSubModules.map((item) => (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      className={({ isActive }) => 
-                        `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                          isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                        }`
-                      }
-                    >
-                      <item.icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm">{item.label}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <NavLink
-              to="/ventas/turno"
-              className={({ isActive }) => 
-                `flex items-center justify-center px-3 py-2 rounded-lg transition ${
-                  isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                }`
-              }
-            >
-              <Fuel className="w-5 h-5 flex-shrink-0" />
-            </NavLink>
-          )}
-        </div>
+        {ventasExpanded && (
+          <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+            {ventasSubModules.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'}`
+                }
+              >
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm">{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
+      </>
+    ) : (
+      <NavLink
+        to="/ventas/turno"
+        className={({ isActive }) =>
+          `flex items-center justify-center px-3 py-2 rounded-lg transition ${isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'}`
+        }
+      >
+        <Fuel className="w-5 h-5 flex-shrink-0" />
+      </NavLink>
+    )}
+  </div>
+)}
         {['administrador'].includes(userRole) && (
     <div className="pt-4 mt-4 border-t border-slate-800">
         {!collapsed ? (
@@ -190,7 +186,36 @@ useEffect(() => {
         )}
     </div>
 )}
-
+{['administrador', 'gerente'].includes(userRole) && (
+    <div className="pt-4 mt-4 border-t border-slate-800">
+        {!collapsed ? (
+            <>
+                <NavLink
+                    to="/admin/turnos"
+                    className={({ isActive }) =>
+                        `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                            isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                        }`
+                    }
+                >
+                    <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm font-medium">Turnos y Ventas</span>
+                </NavLink>
+            </>
+        ) : (
+            <NavLink
+                to="/admin/turnos"
+                className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                }
+            >
+                <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+            </NavLink>
+        )}
+    </div>
+)}
         {/* Administración y Seguridad */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
         <div className="pt-4 mt-4 border-t border-slate-800">
