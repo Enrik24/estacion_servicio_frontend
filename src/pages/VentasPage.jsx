@@ -243,19 +243,33 @@ function RegistrarVentaModule() {
     const [formData, setFormData] = useState({
         lado_id: '',
         tipo_combustible_id: '',
-        litros: '',
+        monto_bs: '',
+        es_lleno: false,
         metodo_pago: 'EFECTIVO',
         cliente_id: ''
     });
-    const [totalCalculado, setTotalCalculado] = useState(0);
-
+    const [litrosCalculados, setLitrosCalculados] = useState(null);
     useEffect(() => {
         cargarDatos();
     }, []);
 
     useEffect(() => {
-        calcularTotal();
-    }, [formData.tipo_combustible_id, formData.litros]);
+        calcularLitros();
+    }, [formData.tipo_combustible_id, formData.monto_bs, formData.es_lleno]);
+
+    const calcularLitros = () => {
+        if (formData.es_lleno || !formData.tipo_combustible_id || !formData.monto_bs) {
+            setLitrosCalculados(null);
+            return;
+        }
+        const tipo = tiposCombustible.find(t => t.id === parseInt(formData.tipo_combustible_id));
+        if (tipo && parseFloat(formData.monto_bs) > 0) {
+            const litros = (parseFloat(formData.monto_bs) / parseFloat(tipo.precio_litro)).toFixed(3);
+            setLitrosCalculados(litros);
+        } else {
+            setLitrosCalculados(null);
+        }
+    };
 
     const cargarDatos = async () => {
         setLoading(true);
@@ -288,17 +302,6 @@ function RegistrarVentaModule() {
         }
     };
 
-    const calcularTotal = () => {
-        if (!formData.tipo_combustible_id || !formData.litros) {
-            setTotalCalculado(0);
-            return;
-        }
-        const tipo = tiposCombustible.find(t => t.id === parseInt(formData.tipo_combustible_id));
-        if (tipo) {
-            setTotalCalculado((parseFloat(formData.litros) * parseFloat(tipo.precio_litro)).toFixed(2));
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -308,14 +311,15 @@ function RegistrarVentaModule() {
             const payload = {
                 lado_id: parseInt(formData.lado_id),
                 tipo_combustible_id: parseInt(formData.tipo_combustible_id),
-                litros: parseFloat(formData.litros),
                 metodo_pago: formData.metodo_pago,
+                es_lleno: formData.es_lleno,
             };
+            if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
             if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
             await ventasService.registrar(payload);
             setExito('Venta registrada correctamente');
-            setFormData({ lado_id: '', tipo_combustible_id: '', litros: '', metodo_pago: 'EFECTIVO', cliente_id: '' });
-            setTotalCalculado(0);
+            setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
+            setLitrosCalculados(null);
             setShowModal(false);
             await cargarDatos();
         } catch (err) {
@@ -481,21 +485,66 @@ function RegistrarVentaModule() {
                                 </select>
                             </div>
 
-                            <Input
-                                label="Litros"
-                                type="number"
-                                step="0.001"
-                                value={formData.litros}
-                                onChange={(e) => setFormData({ ...formData, litros: e.target.value })}
-                                required
-                                placeholder="Ej: 10.000"
-                            />
+                            <div>
+    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+        Tipo de despacho
+    </label>
+    <div className="flex gap-3">
+        <button
+            type="button"
+            onClick={() => setFormData({ ...formData, es_lleno: false, monto_bs: '' })}
+            className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                !formData.es_lleno
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+        >
+            Por monto (Bs)
+        </button>
+        <button
+            type="button"
+            onClick={() => setFormData({ ...formData, es_lleno: true, monto_bs: '' })}
+            className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                formData.es_lleno
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+        >
+            Lleno
+        </button>
+    </div>
+</div>
 
-                            {totalCalculado > 0 && (
-                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                                    <p className="text-sm text-emerald-700 font-semibold">Total a cobrar: Bs. {totalCalculado}</p>
-                                </div>
-                            )}
+{!formData.es_lleno && (
+    <Input
+        label="Monto en Bs"
+        type="number"
+        step="0.01"
+        value={formData.monto_bs}
+        onChange={(e) => setFormData({ ...formData, monto_bs: e.target.value })}
+        required={!formData.es_lleno}
+        placeholder="Ej: 100.00"
+    />
+)}
+
+{!formData.es_lleno && litrosCalculados && (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1">
+        <p className="text-sm text-emerald-700 font-semibold">
+            Litros a despachar: {litrosCalculados} Lt
+        </p>
+        <p className="text-xs text-emerald-600">
+            Total a cobrar: Bs. {formData.monto_bs}
+        </p>
+    </div>
+)}
+
+{formData.es_lleno && (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <p className="text-sm text-amber-700 font-semibold">
+            Despacho completo — el total se registrará al finalizar
+        </p>
+    </div>
+)}
 
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Método de pago</label>
