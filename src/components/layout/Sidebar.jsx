@@ -14,7 +14,8 @@ import {
   Fuel,
   Clock,
   ShoppingCart,
-  Building2
+  Building2,
+  Wallet
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -187,35 +188,65 @@ useEffect(() => {
     </div>
 )}
 {['administrador', 'gerente'].includes(userRole) && (
-    <div className="pt-4 mt-4 border-t border-slate-800">
-        {!collapsed ? (
-            <>
+          <div className="pt-4 mt-4 border-t border-slate-800">
+            {!collapsed ? (
+              <div className="space-y-1">
+                <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Auditoría de Caja
+                </p>
+                
+                {/* Enlace original a Turnos */}
                 <NavLink
-                    to="/admin/turnos"
-                    className={({ isActive }) =>
-                        `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                            isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                        }`
-                    }
-                >
-                    <ShoppingCart className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm font-medium">Turnos y Ventas</span>
-                </NavLink>
-            </>
-        ) : (
-            <NavLink
-                to="/admin/turnos"
-                className={({ isActive }) =>
-                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
-                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                  to="/admin/turnos"
+                  className={({ isActive }) =>
+                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                     }`
-                }
-            >
-                <ShoppingCart className="w-5 h-5 flex-shrink-0" />
-            </NavLink>
+                  }
+                >
+                  <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">Historial Turnos</span>
+                </NavLink>
+
+                {/* NUEVO: Enlace a Consolidación (CU8) */}
+                <NavLink
+                  to="/admin/consolidacion"
+                  className={({ isActive }) =>
+                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Wallet className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">Consolidar Caja</span>
+                </NavLink>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <NavLink
+                  to="/admin/turnos"
+                  className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+                </NavLink>
+                <NavLink
+                  to="/admin/consolidacion"
+                  className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Wallet className="w-5 h-5 flex-shrink-0" />
+                </NavLink>
+              </div>
+            )}
+          </div>
         )}
-    </div>
-)}
         {/* Administración y Seguridad */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
         <div className="pt-4 mt-4 border-t border-slate-800">
