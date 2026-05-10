@@ -14,7 +14,8 @@ import {
   Fuel,
   Clock,
   ShoppingCart,
-  Building2
+  Building2,
+  Database
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -50,6 +51,7 @@ useEffect(() => {
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
+    { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
   ];
 
  const ventasSubModules = [

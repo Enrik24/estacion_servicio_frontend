@@ -8,6 +8,7 @@ import MapaPicker from '../components/MapaPicker';
 import { sucursalesService } from '../services/sucursalesService';
 import { turnosService, ventasService } from '../services/ventasService';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
+import apiClient from '../services/api';
 import './BitacoraPage.css';
 // Sub-modules
 function UsuariosModule() {
@@ -1164,6 +1165,7 @@ function TurnosAdminModule() {
     const [horario, setHorario] = useState('');
     const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
     const [ventas, setVentas] = useState([]);
+    const [tabCombustible, setTabCombustible] = useState(null);
     const [loadingVentas, setLoadingVentas] = useState(false);
 
     useEffect(() => {
@@ -1200,7 +1202,21 @@ function TurnosAdminModule() {
 
     const totalGeneral = turnos.reduce((acc, t) => acc + t.total_ventas, 0).toFixed(2);
     const litrosGeneral = turnos.reduce((acc, t) => acc + t.total_litros, 0).toFixed(3);
+    // ✅ Litros agrupados por tipo de combustible
+const litrosPorTipo = turnos.reduce((acc, t) => {
+  if (t.litros_por_tipo) {
+    Object.entries(t.litros_por_tipo).forEach(([tipo, data]) => {
+      if (!acc[tipo]) acc[tipo] = { cantidad: 0, unidad: data.unidad };
+      acc[tipo].cantidad += data.cantidad;
+    });
+  }
+  return acc;
+}, {});
 
+const tiposCombustible = Object.keys(litrosPorTipo);
+const tabActivo = tabCombustible && litrosPorTipo[tabCombustible] 
+  ? tabCombustible 
+  : tiposCombustible[0] || null;
     return (
         <div className="space-y-6">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Resumen de Turnos</h2>
@@ -1251,10 +1267,40 @@ function TurnosAdminModule() {
                     <p className="text-xs text-gray-500 uppercase font-semibold">Ventas totales</p>
                     <p className="text-2xl font-bold text-emerald-600 mt-1">Bs. {totalGeneral}</p>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Litros totales</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{litrosGeneral} Lt</p>
-                </div>
+               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+  <p className="text-xs text-gray-500 uppercase font-semibold mb-2">
+    Litros por combustible
+  </p>
+
+  {tiposCombustible.length === 0 ? (
+    <p className="text-2xl font-bold text-slate-900 mt-1">0 Lt</p>
+  ) : (
+    <>
+      <div className="flex flex-wrap gap-1 mb-3">
+        {tiposCombustible.map((tipo) => (
+          <button
+            key={tipo}
+            onClick={() => setTabCombustible(tipo)}
+            className={`text-xs px-2 py-1 rounded-full border transition ${
+              tabActivo === tipo
+                ? 'bg-blue-100 text-blue-700 border-blue-300'
+                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            {tipo.replace('Gasolina ', '').replace(' Oil', '')}
+          </button>
+        ))}
+      </div>
+
+      {tabActivo && (
+        <p className="text-2xl font-bold text-slate-900">
+          {litrosPorTipo[tabActivo].cantidad.toFixed(3)}{' '}
+          {litrosPorTipo[tabActivo].unidad}
+        </p>
+      )}
+    </>
+  )}
+</div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                     <p className="text-xs text-gray-500 uppercase font-semibold">Transacciones</p>
                     <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + t.cantidad_ventas, 0)}</p>
@@ -1373,6 +1419,138 @@ function TurnosAdminModule() {
         </div>
     );
 }
+export const backupService = {
+    descargar: () => apiClient.get('/backup/descargar/', { responseType: 'blob' }),
+    restaurar: (archivo) => {
+        const formData = new FormData();
+        formData.append('archivo', archivo);
+        return apiClient.post('/backup/restaurar/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+    }
+};
+function BackupModule() {
+    const [loading, setLoading] = useState(false);
+    const [loadingRestore, setLoadingRestore] = useState(false);
+    const [error, setError] = useState(null);
+    const [exito, setExito] = useState(null);
+    const [archivoRestore, setArchivoRestore] = useState(null);
+
+    const handleDescargar = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await backupService.descargar();
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            link.setAttribute('download', `backup_${fecha}.sql`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            setExito('Backup descargado correctamente');
+        } catch (err) {
+            setError('Error al generar el backup');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRestaurar = async () => {
+        if (!archivoRestore) {
+            setError('Selecciona un archivo .sql para restaurar');
+            return;
+        }
+        if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales de la base de datos.')) return;
+        setLoadingRestore(true);
+        setError(null);
+        try {
+            await backupService.restaurar(archivoRestore);
+            setExito('Base de datos restaurada correctamente');
+            setArchivoRestore(null);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Error al restaurar el backup');
+        } finally {
+            setLoadingRestore(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
+                <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
+            </div>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+                    <p className="text-red-700 text-sm">{error}</p>
+                </div>
+            )}
+            {exito && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+                    <p className="text-emerald-700 text-sm">{exito}</p>
+                </div>
+            )}
+
+            {/* Tarjeta Backup */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 className="font-semibold text-slate-900 text-lg">Generar Backup</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Descarga una copia completa de la base de datos en formato <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span>. Guarda este archivo en un lugar seguro.
+                    </p>
+                </div>
+                <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
+                    Descargar Backup
+                </Button>
+            </div>
+
+            {/* Tarjeta Restore */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> generado previamente. <span className="text-red-600 font-medium">Esta acción reemplazará todos los datos actuales.</span>
+                    </p>
+                </div>
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                            Seleccionar archivo .sql
+                        </label>
+                        <input
+                            type="file"
+                            accept=".sql"
+                            onChange={(e) => {
+                                setArchivoRestore(e.target.files[0]);
+                                setError(null);
+                                setExito(null);
+                            }}
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
+                        />
+                    </div>
+                    {archivoRestore && (
+                        <p className="text-xs text-gray-500">
+                            Archivo seleccionado: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
+                        </p>
+                    )}
+                    <Button
+                        onClick={handleRestaurar}
+                        loading={loadingRestore}
+                        fullWidth={false}
+                        size="small"
+                        className="!bg-red-600 hover:!bg-red-700"
+                    >
+                        Restaurar Base de Datos
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 function AdminPanel() {
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -1388,6 +1566,7 @@ function AdminPanel() {
             <Route path="sucursales" element={<SucursalesModule />} />
             <Route path="turnos" element={<TurnosAdminModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
+            <Route path="backup" element={<BackupModule />} />
           </Routes>
         </main>
       </div>
