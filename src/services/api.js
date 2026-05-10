@@ -85,3 +85,4 @@ export { usuariosService } from './usuariosService.js';
 export { rolesService } from './rolesService.js';
 export { permisosService } from './permisosService.js';
 export { bitacoraService } from './bitacoraService.js';
+export { ventasService} from './ventasService.js';

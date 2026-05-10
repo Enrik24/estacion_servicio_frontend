@@ -329,14 +329,44 @@ function RegistrarVentaModule() {
         setError(null);
         setExito(null);
         try {
+            // Validar que turno existe
+            if (!turno || !turno.id) {
+                setError('No hay un turno activo. Por favor, abre un turno primero.');
+                setLoading(false);
+                return;
+            }
+
             const payload = {
+                turno_id: turno.id,  // ✅ AGREGADO: ID del turno actual
                 lado_id: parseInt(formData.lado_id),
                 tipo_combustible_id: parseInt(formData.tipo_combustible_id),
                 metodo_pago: formData.metodo_pago,
                 es_lleno: formData.es_lleno,
             };
-            if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
-            if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
+            
+            // Validar que los IDs sean números válidos
+            if (isNaN(payload.lado_id) || isNaN(payload.tipo_combustible_id)) {
+                setError('Selecciona lado y tipo de combustible válidos');
+                setLoading(false);
+                return;
+            }
+
+            if (!formData.es_lleno) {
+                payload.monto_bs = parseFloat(formData.monto_bs);
+                if (isNaN(payload.monto_bs) || payload.monto_bs <= 0) {
+                    setError('Ingresa un monto válido');
+                    setLoading(false);
+                    return;
+                }
+            }
+            
+            if (formData.cliente_id) {
+                payload.cliente_id = parseInt(formData.cliente_id);
+            }
+
+            // 🔍 DEBUG: Ver qué se envía
+            console.log('📤 Payload enviado:', payload);
+
             await ventasService.registrar(payload);
             setExito('Venta registrada correctamente');
             setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
@@ -344,7 +374,10 @@ function RegistrarVentaModule() {
             setShowModal(false);
             await cargarDatos();
         } catch (err) {
-            setError(err.response?.data?.error || 'Error al registrar la venta');
+            console.error('❌ Error en registro:', err);
+            const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
+            console.error('📥 Respuesta del servidor:', err.response?.data);
+            setError(errorMsg);
         } finally {
             setLoading(false);
         }

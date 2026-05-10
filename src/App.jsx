@@ -22,6 +22,11 @@ function App() {
             <AdminPanel />
           </ProtectedRoute>
         } />
+        <Route path="/admin/consolidacion" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <ConsolidacionCaja />
+          </ProtectedRoute>
+        } />
         <Route path="/ventas/*" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Operador']}>
             <VentasPanel />
@@ -30,11 +35,6 @@ function App() {
         <Route path="/bitacora" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Auditor', 'Gerente']}>
             <BitacoraPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/consolidacion" element={
-          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
-            <ConsolidacionCaja />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
