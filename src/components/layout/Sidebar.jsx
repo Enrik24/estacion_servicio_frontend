@@ -14,13 +14,16 @@ import {
   Fuel,
   Clock,
   ShoppingCart,
-  Building2
+  Building2,
+  BarChart3,
+  FileText
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [adminExpanded, setAdminExpanded] = useState(true);
   const [ventasExpanded, setVentasExpanded] = useState(true);
   const [sucursalesExpanded, setSucursalesExpanded] = useState(true);
+  const [reportingExpanded, setReportingExpanded] = useState(true);
   const [userRole, setUserRole] = useState('');
 
 useEffect(() => {
@@ -40,6 +43,7 @@ useEffect(() => {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isVentasRoute = location.pathname.startsWith('/ventas');
   const isSucursalesRoute = location.pathname.startsWith('/admin/sucursales');
+  const isReportesRoute = location.pathname.startsWith('/reportes');
   
   const menuItems = [
     { path: '/home', label: 'Dashboard', icon: LayoutDashboard },
@@ -58,6 +62,9 @@ useEffect(() => {
 ];
   const sucursalesSubModules = [
       { path: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
+  ];
+  const reportingSubModules = [
+      { path: '/reportes', label: 'Reportes', icon: FileText },
   ];
   return (
     <aside className={`bg-slate-900 text-white transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'} min-h-screen flex flex-col flex-shrink-0`}>
@@ -212,6 +219,57 @@ useEffect(() => {
                 }
             >
                 <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+            </NavLink>
+        )}
+    </div>
+)}
+        {/* Inteligencia de Negocio, Reporting */}
+        {['administrador', 'gerente', 'auditor'].includes(userRole) && (
+    <div className="pt-4 mt-4 border-t border-slate-800">
+        {!collapsed ? (
+            <>
+                <button
+                    onClick={() => setReportingExpanded(!reportingExpanded)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
+                        isReportesRoute ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                >
+                    <div className="flex items-center space-x-3">
+                        <BarChart3 className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium">Inteligencia de Negocio</span>
+                    </div>
+                    {reportingExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {reportingExpanded && (
+                    <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+                        {reportingSubModules.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                                    }`
+                                }
+                            >
+                                <item.icon className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-sm">{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                )}
+            </>
+        ) : (
+            <NavLink
+                to="/reportes"
+                className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                }
+            >
+                <BarChart3 className="w-5 h-5 flex-shrink-0" />
             </NavLink>
         )}
     </div>
