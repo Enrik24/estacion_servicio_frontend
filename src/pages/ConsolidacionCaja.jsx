@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
-import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { toast } from 'react-hot-toast';
 import consolidacionService from '../services/consolidacionService';
@@ -105,8 +104,21 @@ const ConsolidacionCaja = () => {
     }
   };
 
+  // Calcular totales
+  const calcularTotales = () => {
+    const ventaTotal = data.tabla.reduce((sum, turno) => sum + (turno.monto_sistema || 0), 0);
+    const diferenciaTotalMonto = data.tabla.reduce((sum, turno) => sum + (turno.diferencia || 0), 0);
+    return {
+      ventaTotal: ventaTotal.toFixed(2),
+      diferenciaTotalMonto: diferenciaTotalMonto.toFixed(2)
+    };
+  };
+
+  const totales = calcularTotales();
+  const hoy = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+
   if (loading) return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header showNav={false} showUserMenu variant="light" fixed={false} />
@@ -121,97 +133,159 @@ const ConsolidacionCaja = () => {
   );
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header showNav={false} showUserMenu variant="light" fixed={false} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
-          <div className="space-y-6 max-w-7xl mx-auto">
-            {/* Header */}
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">💰 Validación y Consolidación de Caja</h1>
-              <p className="text-gray-600 mt-1">Gestione los turnos y consolide los montos de caja</p>
+        <main className="flex-1 overflow-auto">
+          <div className="max-w-7xl mx-auto p-6">
+            
+            {/* Indicadores - Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Venta Total (Sistema)</p>
+                <h3 className="text-2xl font-bold">Bs. {totales.ventaTotal}</h3>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Total Facturas</p>
+                <h3 className="text-2xl font-bold text-emerald-600">{data.indicadores?.total_facturas ?? 0}</h3>
+              </div>
+              <div className={`bg-white p-4 rounded-xl shadow-sm ${totales.diferenciaTotalMonto < 0 ? 'border border-red-100 bg-red-50' : 'border border-slate-200'}`}>
+                <p className={`text-xs uppercase font-bold mb-1 ${totales.diferenciaTotalMonto < 0 ? 'text-red-500' : 'text-slate-500'}`}>Diferencia Total</p>
+                <h3 className={`text-2xl font-bold ${totales.diferenciaTotalMonto < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+                  Bs. {totales.diferenciaTotalMonto}
+                </h3>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Turnos Pendientes</p>
+                <h3 className="text-2xl font-bold text-slate-700">{String(data.tabla.length).padStart(2, '0')}</h3>
+              </div>
             </div>
 
+            {/* Sección Principal */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Sidebar - Turnos del Día */}
+              <div className="lg:col-span-1 space-y-4">
+                <h2 className="text-sm font-black text-slate-500 uppercase tracking-tighter mb-4">Turnos del Día</h2>
+                
+                {data.tabla && Array.isArray(data.tabla) && data.tabla.length > 0 ? (
+                  data.tabla.map((turno, index) => (
+                    <div 
+                      key={turno.id}
+                      className={`bg-white p-4 rounded-lg border-l-4 shadow-sm transition ${
+                        index === 0 
+                          ? 'border-l-emerald-500 hover:bg-slate-50 cursor-pointer' 
+                          : 'border-l-slate-300 opacity-60 grayscale'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
+                          index === 0
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {turno.turno_tipo || 'TURNO'}
+                        </span>
+                      </div>
+                      <p className="font-bold text-sm text-slate-800">{turno.operador_nombre || turno.operador || 'N/A'}</p>
+                      <p className={`text-xs ${index === 0 ? 'text-slate-500' : 'text-slate-400 italic'}`}>
+                        {index === 0 ? `Ubicación: ${turno.ubicacion || turno.sucursal_nombre || 'N/A'}` : 'Esperando cierre de sesión...'}
+                      </p>
+                      <div className="mt-3 flex justify-between items-center text-xs">
+                        <span className="text-slate-600">Venta: Bs. {typeof turno.monto_sistema === 'number' ? turno.monto_sistema.toFixed(2) : '0.00'}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white p-4 rounded-lg border border-slate-200 text-center text-slate-500">
+                    ✓ No hay turnos pendientes
+                  </div>
+                )}
+              </div>
+
+              {/* Tabla Principal */}
+              <div className="lg:col-span-2 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center flex-wrap gap-4">
+                  <h2 className="font-bold text-slate-800">💰 Cuadre de Caja por Ventas</h2>
+                  <span className="text-[10px] bg-slate-200 px-2 py-1 rounded font-bold text-slate-600">{hoy}</span>
+                  <div className="space-x-2">
+                    <button className="bg-slate-200 text-slate-700 px-3 py-1 rounded text-xs font-bold hover:bg-slate-300 transition">
+                      Exportar Excel
+                    </button>
+                    <button className="bg-slate-200 text-slate-700 px-3 py-1 rounded text-xs font-bold hover:bg-slate-300 transition">
+                      Ver PDF
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold">
+                      <tr>
+                        <th className="p-4">Operador</th>
+                        <th className="p-4 text-center">Sucursal</th>
+                        <th className="p-4 text-center">Diferencia</th>
+                        <th className="p-4 text-right">Monto (Bs)</th>
+                        <th className="p-4 text-center">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {data.tabla && Array.isArray(data.tabla) && data.tabla.length > 0 ? (
+                        data.tabla.map((turno) => (
+                          <tr key={turno.id} className="hover:bg-slate-50 transition">
+                            <td className="p-4 font-bold text-slate-700">{turno.operador_nombre || turno.operador || 'N/A'}</td>
+                            <td className="p-4 text-center text-slate-600 text-sm">{turno.ubicacion || turno.sucursal_nombre || turno.sucursal || 'N/A'}</td>
+                            <td className={`p-4 text-center font-bold text-sm ${turno.diferencia < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              Bs. {typeof turno.diferencia === 'number' ? turno.diferencia.toFixed(2) : "0.00"}
+                            </td>
+                            <td className="p-4 text-right font-bold">
+                              Bs. {typeof turno.monto_sistema === 'number' ? turno.monto_sistema.toFixed(2) : "0.00"}
+                            </td>
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleConsolidar(turno.id)}
+                                disabled={consolidating === turno.id}
+                                className={`px-3 py-1 rounded text-xs font-bold transition ${
+                                  consolidating === turno.id
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                }`}
+                              >
+                                {consolidating === turno.id ? '⏳ Procesando...' : '✓ Consolidar'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="p-8 text-center text-slate-500">
+                            {error ? '❌ Error al cargar datos' : '✓ No hay turnos pendientes de validación'}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Total Consolidado */}
+                <div className="p-6 bg-slate-50 border-t border-slate-200">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="text-center md:text-left">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Consolidado</p>
+                      <p className="text-2xl font-black text-emerald-600 italic">Bs. {totales.ventaTotal}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mensaje de Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
                 ⚠️ {error}
               </div>
             )}
-
-            {/* Seccion de Indicadores (Cards) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 border-l-4 border-l-blue-500">
-                <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Turnos por Validar</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{data.indicadores?.turnos_pendientes ?? 0}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 border-l-4 border-l-purple-500">
-                <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Total Facturas (Hoy)</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{data.indicadores?.total_facturas ?? 0}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 border-l-4 border-l-red-500">
-                <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Monto Faltante Total</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  Bs. {typeof data.indicadores?.monto_faltantes === 'number' ? data.indicadores.monto_faltantes.toFixed(2) : "0.00"}
-                </p>
-              </div>
-            </div>
-
-            {/* Tabla de Datos */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-lg font-semibold text-slate-900">📋 Turnos Pendientes</h2>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 font-semibold text-sm text-gray-700">Operador</th>
-                      <th className="px-6 py-3 font-semibold text-sm text-gray-700">Sucursal</th>
-                      <th className="px-6 py-3 font-semibold text-sm text-gray-700">Venta (Sistema)</th>
-                      <th className="px-6 py-3 font-semibold text-sm text-gray-700">Diferencia</th>
-                      <th className="px-6 py-3 font-semibold text-sm text-gray-700">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {data.tabla && Array.isArray(data.tabla) && data.tabla.length > 0 ? (
-                      data.tabla.map((turno) => (
-                        <tr key={turno.id} className="hover:bg-gray-50 transition">
-                          <td className="px-6 py-4 font-semibold text-gray-900">{turno.operador_nombre || turno.operador || 'N/A'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{turno.ubicacion || turno.sucursal_nombre || turno.sucursal || 'N/A'}</td>
-                          <td className="px-6 py-4 font-semibold text-gray-900">
-                            Bs. {typeof turno.monto_sistema === 'number' ? turno.monto_sistema.toFixed(2) : "0.00"}
-                          </td>
-                          <td className={`px-6 py-4 font-bold ${turno.diferencia < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            Bs. {typeof turno.diferencia === 'number' ? turno.diferencia.toFixed(2) : "0.00"}
-                          </td>
-                          <td className="px-6 py-4">
-                            <Button 
-                              onClick={() => handleConsolidar(turno.id)}
-                              disabled={consolidating === turno.id}
-                              className={`${
-                                consolidating === turno.id 
-                                  ? 'opacity-50 cursor-not-allowed' 
-                                  : 'hover:bg-emerald-600'
-                              }`}
-                            >
-                              {consolidating === turno.id ? '⏳ Procesando...' : '✓ Consolidar'}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                          {error ? '❌ Error al cargar datos' : '✓ No hay turnos pendientes de validación'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
         </main>
       </div>
