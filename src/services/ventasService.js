@@ -47,3 +47,7 @@ export const turnosService = {
     abrir: (data) => apiClient.post('/turnos/', data),
     cerrar: (id, data) => apiClient.post(`/turnos/${id}/cerrar/`, data),
 };
+export const vehiculosService = {
+    buscarPorPlaca: (placa) => apiClient.get(`/vehiculos/buscar_placa/?placa=${placa}`),
+    registrarClienteVehiculo: (data) => apiClient.post('/vehiculos/registrar_cliente_vehiculo/', data),
+};
