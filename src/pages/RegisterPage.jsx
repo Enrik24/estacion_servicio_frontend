@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Mail, Lock, CircleCheck as CheckCircle, Fuel, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { authService } from '../services/api';
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState({ 
     fullName: '',
     email: '',
     password: '',
@@ -35,8 +36,9 @@ function RegisterPage() {
       newErrors.fullName = 'El nombre completo es requerido';
     }
 
-    if (!formData.email.includes('@surtidorbolivia.bo')) {
-      newErrors.email = 'Debe usar un correo institucional (@surtidorbolivia.bo)';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Ingrese un correo electrónico válido';
     }
 
     if (formData.password.length < 6) {
@@ -58,10 +60,31 @@ function RegisterPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      // Mapeo de campos: fullName -> nombre
+      const payload = {
+        nombre: formData.fullName,
+        email: formData.email,
+        password: formData.password
+      };
+
+      await authService.register(payload);
+      
+      // Registro exitoso - Redirigir al login
+      navigate('/login', { 
+        state: { message: 'Registro exitoso. Ya puedes iniciar sesión.' } 
+      });
+    } catch (error) {
+      console.error('Error en registro:', error);
+      
+      const serverError = error.response?.data?.error || 'Error al procesar el registro. Intente de nuevo.';
+      setErrors(prev => ({
+        ...prev,
+        submit: serverError
+      }));
+    } finally {
       setLoading(false);
-      navigate('/home');
-    }, 1500);
+    }
   };
 
   return (
@@ -106,6 +129,11 @@ function RegisterPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {errors.submit && (
+                <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded">
+                  {errors.submit}
+                </div>
+              )}
               <Input
                 type="text"
                 name="fullName"
@@ -124,8 +152,8 @@ function RegisterPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="usuario@surtidorbolivia.bo"
-                label="CORREO INSTITUCIONAL"
+                placeholder="nombre@correo.com"
+                label="CORREO ELECTRÓNICO"
                 required
                 icon={Mail}
                 variant="filled"
