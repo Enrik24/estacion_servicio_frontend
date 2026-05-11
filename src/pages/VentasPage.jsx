@@ -332,50 +332,64 @@ function RegistrarVentaModule() {
     };
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setExito(null);
+        try {
+            // Validar que turno existe
+            if (!turno || !turno.id) {
+                setError('No hay un turno activo. Por favor, abre un turno primero.');
+                setLoading(false);
+                return;
+            }
 
-    if (['QR', 'TARJETA'].includes(formData.metodo_pago)) {
-        setShowModal(false);   // ✅ cierra el modal de venta
-        setMostrarPasarela(true);
-        return;
-    }
+            const payload = {
+                turno_id: turno.id,  // ✅ AGREGADO: ID del turno actual
+                lado_id: parseInt(formData.lado_id),
+                tipo_combustible_id: parseInt(formData.tipo_combustible_id),
+                metodo_pago: formData.metodo_pago,
+                es_lleno: formData.es_lleno,
+            };
+            
+            // Validar que los IDs sean números válidos
+            if (isNaN(payload.lado_id) || isNaN(payload.tipo_combustible_id)) {
+                setError('Selecciona lado y tipo de combustible válidos');
+                setLoading(false);
+                return;
+            }
 
-    await ejecutarRegistroVenta();
-};
+            if (!formData.es_lleno) {
+                payload.monto_bs = parseFloat(formData.monto_bs);
+                if (isNaN(payload.monto_bs) || payload.monto_bs <= 0) {
+                    setError('Ingresa un monto válido');
+                    setLoading(false);
+                    return;
+                }
+            }
+            
+            if (formData.cliente_id) {
+                payload.cliente_id = parseInt(formData.cliente_id);
+            }
 
-const ejecutarRegistroVenta = async () => {
-    setLoading(true);
-    setError('');
-    try {
-        await ventasService.registrar(formData);
-        setExito('Venta registrada correctamente');
+            // 🔍 DEBUG: Ver qué se envía
+            console.log('📤 Payload enviado:', payload);
 
-        // ✅ Cerrar modal y recargar ventas
-        setShowModal(false);
-        setMostrarPasarela(false);
-        await cargarDatos();
-
-        // ✅ Resetear formulario
-        setFormData({
-            lado_id: '',
-            tipo_combustible_id: '',
-            monto_bs: '',
-            es_lleno: false,
-            metodo_pago: 'EFECTIVO',
-            cliente_id: '',
-        });
-        setClienteEncontrado(null);
-        setPlacaInput('');
-        setPaso('placa');
-
-    } catch (err) {
-        const msg = err.response?.data?.error || 'Error al registrar la venta';
-        setError(msg);
-        setMostrarPasarela(false);
-    } finally {
-        setLoading(false);
-    }
-};
+            await ventasService.registrar(payload);
+            setExito('Venta registrada correctamente');
+            setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
+            setLitrosCalculados(null);
+            setShowModal(false);
+            await cargarDatos();
+        } catch (err) {
+            console.error('❌ Error en registro:', err);
+            const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
+            console.error('📥 Respuesta del servidor:', err.response?.data);
+            setError(errorMsg);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAnular = async (id) => {
         if (!confirm('¿Está seguro de anular esta venta?')) return;

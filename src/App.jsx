@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -9,6 +11,7 @@ import VentasPanel from './pages/VentasPage';
 import BitacoraPage from './pages/BitacoraPage';
 import ReportesPage from './pages/ReportesPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import ConsolidacionCaja from './pages/ConsolidacionCaja';
 
 function App() {
   return (
@@ -22,6 +25,11 @@ function App() {
         <Route path="/admin/*" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
             <AdminPanel />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/consolidacion" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <ConsolidacionCaja />
           </ProtectedRoute>
         } />
         <Route path="/ventas/*" element={

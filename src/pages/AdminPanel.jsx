@@ -5,10 +5,10 @@ import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import MapaPicker from '../components/MapaPicker';
+import BitacoraTable from '../components/BitacoraTable';
 import { sucursalesService } from '../services/sucursalesService';
 import { turnosService, ventasService } from '../services/ventasService';
-import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
-import apiClient from '../services/api';
+import { usuariosService, rolesService, permisosService } from '../services/api';
 import './BitacoraPage.css';
 import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
 import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
@@ -732,215 +732,7 @@ function PermisosModule() {
 }
 
 function BitacoraModule() {
-  const [registros, setRegistros] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Estados para filtros y paginación
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterAction, setFilterAction] = useState('todos');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  // 1. Cargar datos desde el Backend
-  useEffect(() => {
-    const fetchBitacora = async () => {
-      try {
-        setLoading(true);
-        const response = await bitacoraService.getAll();
-        const registrosBackend = response.data.results ? response.data.results : response.data;
-        setRegistros(registrosBackend);
-        setError(null);
-      } catch (err) {
-        console.error(err);
-        setError('No se pudo cargar la bitácora.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBitacora();
-  }, []);
-
-  // 2. Lógica de Filtrado
-  const registrosFiltrados = registros.filter((registro) => {
-    const textoLibre = searchTerm.toLowerCase();
-
-    const coincideTexto =
-      String(registro.id).toLowerCase().includes(textoLibre) ||
-      (registro.usuario_nombre || '').toLowerCase().includes(textoLibre) ||
-      (registro.usuario_email || '').toLowerCase().includes(textoLibre) ||
-      (registro.usuario_rol || '').toLowerCase().includes(textoLibre) ||
-      (registro.accion || '').toLowerCase().includes(textoLibre) ||
-      (registro.modulo_afectado || '').toLowerCase().includes(textoLibre) ||
-      (registro.descripcion || '').toLowerCase().includes(textoLibre) ||
-      (registro.ip_address || '').includes(textoLibre) ||
-      (registro.user_agent || '').toLowerCase().includes(textoLibre);
-
-    const coincideAtributo =
-      filterAction === "todos" ||
-      (filterAction === "web" && (registro.user_agent || '').includes("Web")) ||
-      (filterAction === "movil" && (registro.user_agent || '').includes("Móvil")) ||
-      (filterAction === "create" && registro.accion === "CREATE") ||
-      (filterAction === "update" && registro.accion === "UPDATE") ||
-      (filterAction === "delete" && registro.accion === "DELETE") ||
-      (filterAction === "login" && registro.accion === "LOGIN");
-
-    return coincideTexto && coincideAtributo;
-  });
-
-  // 3. Paginación
-  const totalPages = Math.ceil(registrosFiltrados.length / itemsPerPage) || 1;
-  const currentPageSafe = currentPage > totalPages ? 1 : currentPage;
-  const startIndex = (currentPageSafe - 1) * itemsPerPage;
-  const registrosPaginados = registrosFiltrados.slice(startIndex, startIndex + itemsPerPage);
-
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handleFilter = (e) => {
-    setFilterAction(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handleClear = () => {
-    setSearchTerm('');
-    setFilterAction('todos');
-    setCurrentPage(1);
-  };
-
-  const getColorAccion = (accion) => {
-    const colores = {
-      CREATE: { bg: '#dcfce7', color: '#166534' },
-      UPDATE: { bg: '#dbeafe', color: '#1e40af' },
-      DELETE: { bg: '#fee2e2', color: '#991b1b' },
-      LOGIN: { bg: '#f3e8ff', color: '#6b21a8' },
-    };
-    return colores[accion] || { bg: '#f3f4f6', color: '#374151' };
-  };
-
-  const formatearFecha = (fechaISO) => {
-    if (!fechaISO) return "N/A";
-    const fecha = new Date(fechaISO);
-    const fechaStr = fecha.toLocaleDateString("es-BO");
-    const horaStr = fecha.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" });
-    return (
-      <div className="date-time">
-        <div>{fechaStr}</div>
-        <div className="time" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{horaStr}</div>
-      </div>
-    );
-  };
-
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando bitácora...</div>;
-  if (error) return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>{error}</div>;
-
-  return (
-    <div className="container">
-      <div className="header">
-        <h1>📊 Bitácora</h1>
-        <p>Registro de movimientos del sistema</p>
-      </div>
-
-      <div className="card">
-        <div className="filters-container">
-          <h3 className="filters-title">🔍 Filtros</h3>
-          <div className="filters-grid">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={handleSearch}
-              className="form-control"
-              placeholder="Buscar por cualquier dato..."
-            />
-            <select value={filterAction} onChange={handleFilter} className="form-control">
-              <option value="todos">Todos los atributos</option>
-              <optgroup label="Acción">
-                <option value="create">✨ Crear</option>
-                <option value="update">📝 Actualizar</option>
-                <option value="delete">🗑️ Eliminar</option>
-                <option value="login">🔓 Acceso</option>
-              </optgroup>
-            </select>
-            <button onClick={handleClear} className="btn-clear">✕ Limpiar</button>
-          </div>
-        </div>
-
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Usuario</th>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>Acción</th>
-                <th style={{ minWidth: '150px' }}>Módulo</th>
-                <th style={{ minWidth: '200px' }}>Descripción</th>
-                <th>Origen (IP)</th>
-                <th>Dispositivo</th>
-                <th>Fecha/Hora</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrosPaginados.length > 0 ? (
-                registrosPaginados.map((registro) => {
-                  const colors = getColorAccion(registro.accion);
-                  const iconoDispositivo = (registro.user_agent || '').includes("Mobile") || (registro.user_agent || '').includes("Android") ? "📱 Móvil" : "🌐 Web";
-
-                  return (
-                    <tr key={registro.id}>
-                      <td style={{ fontWeight: '600', color: '#64748b' }}>{registro.id}</td>
-                      <td style={{ fontWeight: '600' }}>{registro.usuario_nombre || 'Sistema'}</td>
-                      <td style={{ color: '#64748b' }}>{registro.usuario_email || 'N/A'}</td>
-                      <td>
-                        <span style={{
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '0.25rem',
-                          fontSize: '0.75rem',
-                          backgroundColor: '#f1f5f9',
-                          color: '#475569',
-                          fontWeight: '600'
-                        }}>
-                          {registro.usuario_rol || 'Sin Rol'}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ backgroundColor: colors.bg, color: colors.color, padding: '0.3rem 0.6rem', borderRadius: '0.375rem', fontSize: '0.7rem', fontWeight: '700' }}>
-                          {registro.accion}
-                        </span>
-                      </td>
-                      <td>{registro.modulo_afectado}</td>
-                      <td style={{ color: '#475569' }}>{registro.descripcion}</td>
-                      <td style={{ fontFamily: 'monospace', color: '#4f46e5', fontWeight: '500' }}>{registro.ip_address}</td>
-                      <td style={{ fontWeight: '600' }}>{iconoDispositivo}</td>
-                      <td>{formatearFecha(registro.fecha_hora)}</td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
-                    No hay registros que coincidan con los filtros aplicados.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="footer">
-          <div style={{ marginBottom: '0.5rem' }}>
-            <button disabled={currentPageSafe === 1} onClick={() => setCurrentPage(c => c - 1)} style={{ marginRight: '0.5rem' }}>← Anterior</button>
-            <button disabled={currentPageSafe === totalPages} onClick={() => setCurrentPage(c => c + 1)} style={{ marginLeft: '0.5rem' }}>Siguiente →</button>
-          </div>
-          Página <strong>{currentPageSafe}</strong> de <strong>{totalPages}</strong> | Mostrando <strong>{registrosPaginados.length}</strong> de <strong>{registrosFiltrados.length}</strong> registros
-        </div>
-      </div>
-    </div>
-  );
+  return <BitacoraTable itemsPerPage={5} isEmbedded={true} />;
 }
 function SucursalesModule() {
   const [sucursales, setSucursales] = useState([]);
@@ -1164,6 +956,7 @@ function SucursalesModule() {
 function TurnosAdminModule() {
     const [turnos, setTurnos] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
     const [horario, setHorario] = useState('');
     const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
@@ -1177,11 +970,41 @@ function TurnosAdminModule() {
 
     const cargarTurnos = async () => {
         setLoading(true);
+        setError(null);
         try {
             const response = await turnosService.getResumen(fecha, horario);
-            setTurnos(Array.isArray(response.data) ? response.data : []);
+            console.log('📤 Respuesta del backend:', response);
+            console.log('📤 response.data:', response.data);
+            
+            let turnosData = [];
+            
+            // Intentar extraer los datos de diferentes formatos posibles
+            if (Array.isArray(response.data)) {
+                turnosData = response.data;
+                console.log('✅ Datos es un array');
+            } else if (response.data && typeof response.data === 'object') {
+                // Si es un objeto, buscar la propiedad que contiene el array
+                if (response.data.results && Array.isArray(response.data.results)) {
+                    turnosData = response.data.results;
+                    console.log('✅ Datos encontrados en response.data.results');
+                } else if (response.data.turnos && Array.isArray(response.data.turnos)) {
+                    turnosData = response.data.turnos;
+                    console.log('✅ Datos encontrados en response.data.turnos');
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                    turnosData = response.data.data;
+                    console.log('✅ Datos encontrados en response.data.data');
+                } else {
+                    console.warn('⚠️ No se encontró array en response.data:', Object.keys(response.data));
+                    turnosData = [];
+                }
+            }
+            
+            console.log(`✅ Total de turnos cargados: ${turnosData.length}`, turnosData);
+            setTurnos(turnosData);
         } catch (err) {
-            console.error('Error cargando turnos:', err);
+            console.error('❌ Error cargando turnos:', err);
+            console.error('📥 Detalle del error:', err.response?.data);
+            setError(err.response?.data?.detail || err.message || 'Error al cargar turnos');
             setTurnos([]);
         } finally {
             setLoading(false);
@@ -1203,18 +1026,8 @@ function TurnosAdminModule() {
         }
     };
 
-    const totalGeneral = turnos.reduce((acc, t) => acc + t.total_ventas, 0).toFixed(2);
-    const litrosGeneral = turnos.reduce((acc, t) => acc + t.total_litros, 0).toFixed(3);
-    // ✅ Litros agrupados por tipo de combustible
-const litrosPorTipo = turnos.reduce((acc, t) => {
-  if (t.litros_por_tipo) {
-    Object.entries(t.litros_por_tipo).forEach(([tipo, data]) => {
-      if (!acc[tipo]) acc[tipo] = { cantidad: 0, unidad: data.unidad };
-      acc[tipo].cantidad += data.cantidad;
-    });
-  }
-  return acc;
-}, {});
+    const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
+    const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
 
 const tiposCombustible = Object.keys(litrosPorTipo);
 const tabActivo = tabCombustible && litrosPorTipo[tabCombustible] 
@@ -1259,6 +1072,13 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
                     </div>
                 </div>
             </div>
+
+            {/* Mostrar error si existe */}
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+                    ❌ {error}
+                </div>
+            )}
 
             {/* KPIs */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1306,7 +1126,7 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
 </div>
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                     <p className="text-xs text-gray-500 uppercase font-semibold">Transacciones</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + t.cantidad_ventas, 0)}</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + (t.cantidad_ventas || 0), 0)}</p>
                 </div>
             </div>
 
@@ -1332,26 +1152,31 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">Cargando...</td>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
+                                            Cargando turnos...
+                                        </div>
+                                    </td>
                                 </tr>
                             ) : turnos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No hay turnos para esta fecha</td>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No hay turnos registrados para esta fecha</td>
                                 </tr>
                             ) : (
                                 turnos.map(t => (
                                     <tr key={t.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-slate-800 font-medium">{t.operador}</td>
-                                        <td className="px-4 py-3 text-gray-600">Isla {t.isla}</td>
-                                        <td className="px-4 py-3 text-gray-600">{t.horario}</td>
-                                        <td className="px-4 py-3 text-gray-600 text-xs">{new Date(t.fecha_apertura).toLocaleTimeString('es-BO')}</td>
+                                        <td className="px-4 py-3 text-slate-800 font-medium">{t.operador || t.operador_nombre || 'N/A'}</td>
+                                        <td className="px-4 py-3 text-gray-600">Isla {t.isla || 'N/A'}</td>
+                                        <td className="px-4 py-3 text-gray-600">{t.horario || 'N/A'}</td>
+                                        <td className="px-4 py-3 text-gray-600 text-xs">{t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleTimeString('es-BO') : 'N/A'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${t.estado === 'ABIERTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {t.estado}
+                                                {t.estado || 'N/A'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas}</td>
-                                        <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {t.total_ventas.toFixed(2)}</td>
+                                        <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas || 0}</td>
+                                        <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {(t.total_ventas || 0).toFixed(2)}</td>
                                         <td className="px-4 py-3">
                                             <button
                                                 onClick={() => verVentas(t)}
@@ -1373,7 +1198,7 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                     <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                         <h3 className="font-semibold text-slate-900">
-                            Ventas — {turnoSeleccionado.operador} / Isla {turnoSeleccionado.isla} / {turnoSeleccionado.horario}
+                            Ventas — {turnoSeleccionado.operador || turnoSeleccionado.operador_nombre} / Isla {turnoSeleccionado.isla} / {turnoSeleccionado.horario}
                         </h3>
                         <button onClick={() => setTurnoSeleccionado(null)} className="text-xs text-gray-400 hover:text-gray-600">Cerrar</button>
                     </div>

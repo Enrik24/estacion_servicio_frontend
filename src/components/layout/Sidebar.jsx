@@ -17,6 +17,7 @@ import {
   Clock,
   ShoppingCart,
   Building2,
+  Wallet,
   Database,
   BarChart3,
   FileText
@@ -59,7 +60,7 @@ useEffect(() => {
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
-    { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
+   // { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
   ];
 
  const ventasSubModules = [
@@ -200,33 +201,66 @@ useEffect(() => {
     </div>
 )}
 {['administrador', 'gerente'].includes(userRole) && (
-    <div className="pt-4 mt-4 border-t border-slate-800">
-        {!collapsed ? (
-            <>
+          <div className="pt-4 mt-4 border-t border-slate-800">
+            {!collapsed ? (
+              <div className="space-y-1">
+                <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Auditoría de Caja
+                </p>
+                
+                {/* Enlace original a Turnos */}
                 <NavLink
-                    to="/admin/turnos"
-                    className={({ isActive }) =>
-                        `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                            isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                        }`
-                    }
-                >
-                    <ShoppingCart className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm font-medium">Turnos y Ventas</span>
-                </NavLink>
-            </>
-        ) : (
-            <NavLink
-                to="/admin/turnos"
-                className={({ isActive }) =>
-                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
-                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                  to="/admin/turnos"
+                  className={({ isActive }) =>
+                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
                     }`
-                }
-            >
-                <ShoppingCart className="w-5 h-5 flex-shrink-0" />
-            </NavLink>
+                  }
+                >
+                  <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">Historial Turnos</span>
+                </NavLink>
+
+                {/* NUEVO: Enlace a Consolidación (CU8) */}
+                <NavLink
+                  to="/admin/consolidacion"
+                  className={({ isActive }) =>
+                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Wallet className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">Consolidar Caja</span>
+                </NavLink>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <NavLink
+                  to="/admin/turnos"
+                  className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+                </NavLink>
+                <NavLink
+                  to="/admin/consolidacion"
+                  className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <Wallet className="w-5 h-5 flex-shrink-0" />
+                </NavLink>
+              </div>
+            )}
+          </div>
         )}
+
     </div>
 )}
         {/* Inteligencia de Negocio, Reporting */}
