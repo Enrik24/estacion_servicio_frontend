@@ -81,10 +81,21 @@ export const authService = {
     return !!localStorage.getItem('access_token');
   },
 
-  // Obtener usuario actual
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
+  },
+
+  requestPasswordReset: async (email) => {
+    return apiClient.post('/auth/request-reset/', { email });
+  },
+
+  resetPassword: async (token, password) => {
+    return apiClient.post(`/auth/reset-password/${token}/`, { password });
+  },
+
+  register: async (userData) => {
+    return apiClient.post('/auth/register/', userData);
   }
 };
 

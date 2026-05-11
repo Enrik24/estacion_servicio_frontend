@@ -1,64 +1,76 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Fuel, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { Lock, ArrowRight, Fuel, Shield, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import { authService } from '../services/api';
 
-function LoginPage() {
+function ResetPassword() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const successMessage = location.state?.message;
+  const { token } = useParams();
+  
   const [formData, setFormData] = useState({
-    email: '',
     password: '',
-    rememberMe: false
+    confirmPassword: ''
   });
+  
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) {
+      setError('Enlace de recuperación no válido o inexistente.');
+    }
+  }, [token]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!token) {
+      setError('Token de recuperación no válido.');
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+
     setLoading(true);
     setError('');
+    setMessage('');
 
     try {
-      const response = await authService.login({
-          email: formData.email,
-          password: formData.password
-      });
-
-      const user = response.user;
-      const rol = user?.roles_detalle?.[0]?.nombre || '';
-
-      if (rol === 'Administrador') {
-          navigate('/admin');
-      } else if (rol === 'Gerente') {
-          navigate('/gerente');
-      } else if (rol === 'Operador') {
-          navigate('/ventas/turno');
-      } else if (rol === 'Auditor') {
-          navigate('/admin/bitacora');
-      } else {
-          navigate('/dashboard');
-      }
+      const response = await authService.resetPassword(token, formData.password);
+      setMessage(response.data?.mensaje || 'Contraseña actualizada correctamente. Redirigiendo...');
+      setFormData({ password: '', confirmPassword: '' }); // Limpiar campos sensibles
+      
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      
     } catch (err) {
-        console.error('Error de inicio de sesión:', err);
-        const errorMessage = err.response?.data?.detail || err.response?.data?.error || 'Credenciales incorrectas o error de conexión.';
-        setError(errorMessage);
+      console.error('Error:', err);
+      setError(err.response?.data?.error || 'El enlace de recuperación es inválido, ha expirado, o ocurrió un error.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
   };
 
   return (
@@ -122,91 +134,63 @@ function LoginPage() {
           >
             <Card>
               <div className="mb-8">
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Acceso al Sistema</h2>
-                <p className="text-gray-600">Ingrese sus credenciales para continuar</p>
+                <h2 className="text-3xl font-bold text-slate-900 mb-2">Nueva Contraseña</h2>
+                <p className="text-gray-600">Por favor, ingresa tu nueva contraseña a continuación.</p>
               </div>
 
+              {message && (
+                <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg text-sm flex items-center" aria-live="polite">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  {message}
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm" aria-live="polite">
+                  {error}
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-6">
-                {successMessage && (
-                  <div className="p-3 bg-green-50 border-l-4 border-green-500 text-green-700 text-sm rounded">
-                    {successMessage}
-                  </div>
-                )}
-                {error && (
-                  <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded" aria-live="polite">
-                    {error}
-                  </div>
-                )}
                 <Input
-                  type="email"
-                  name="email"
-                  value={formData.email}
+                  type="password"
+                  name="password"
+                  value={formData.password}
                   onChange={handleChange}
-                  placeholder="nombre@corporativo.bo"
-                  label="CORREO ELECTRÓNICO"
+                  placeholder="••••••••"
+                  label="NUEVA CONTRASEÑA"
                   required
-                  icon={Mail}
+                  minLength={8}
+                  icon={Lock}
+                  showPasswordToggle
                 />
-
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                      CONTRASEÑA
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/forgot-password')}
-                      className="text-xs text-orange-500 hover:text-orange-600 font-medium"
-                    >
-                      Olvidé mi contraseña
-                    </button>
-                  </div>
-                  <Input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    required
-                    icon={Lock}
-                    showPasswordToggle
-                  />
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    id="rememberMe"
-                    name="rememberMe"
-                    type="checkbox"
-                    checked={formData.rememberMe}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
-                    Recordar sesión en esta terminal
-                  </label>
-                </div>
+                
+                <Input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  label="CONFIRMAR CONTRASEÑA"
+                  required
+                  minLength={8}
+                  icon={Lock}
+                  showPasswordToggle
+                />
 
                 <Button
                   type="submit"
                   loading={loading}
                   icon={ArrowRight}
                 >
-                  INICIAR SESIÓN
+                  CAMBIAR CONTRASEÑA
                 </Button>
               </form>
-
+              
               <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                <p className="text-gray-600">
-                  ¿Nuevo en el sistema corporativo?{' '}
-                  <button
-                    onClick={() => navigate('/register')}
-                    className="text-slate-900 font-bold hover:text-slate-700 inline-flex items-center space-x-1"
-                  >
-                    <span>Crear una cuenta</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </p>
+                <Link to="/login" className="text-slate-900 font-bold hover:text-slate-700 inline-flex items-center space-x-1">
+                  Volver al inicio de sesión
+                </Link>
               </div>
             </Card>
           </motion.div>
@@ -225,4 +209,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default ResetPassword;
