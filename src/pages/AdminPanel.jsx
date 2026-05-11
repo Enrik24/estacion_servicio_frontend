@@ -9,6 +9,9 @@ import { sucursalesService } from '../services/sucursalesService';
 import { turnosService, ventasService } from '../services/ventasService';
 import { usuariosService, rolesService, permisosService, bitacoraService } from '../services/api';
 import './BitacoraPage.css';
+import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
+import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
+
 // Sub-modules
 function UsuariosModule() {
   const [users, setUsers] = useState([]);
@@ -1383,6 +1386,8 @@ function AdminPanel() {
           <Routes>
             <Route path="/" element={<Navigate to="usuarios" replace />} />
             <Route path="usuarios" element={<UsuariosModule />} />
+            <Route path="clientes-limites" element={<ClientesLimitesModule />} />
+            <Route path="predicciones-ia" element={<PrediccionesIAModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
             <Route path="sucursales" element={<SucursalesModule />} />
