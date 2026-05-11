@@ -434,19 +434,43 @@ const ConsolidacionCaja = () => {
             {/* Indicadores - Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-slate-500 text-xs uppercase font-bold mb-1">Venta Total (Sistema)</p>
-                <h3 className="text-2xl font-bold">Bs. {totales.ventaTotal}</h3>
-                <div className="text-[10px] text-slate-400 mt-2 border-t border-slate-100 pt-2">
-                  <p className="font-semibold text-slate-600 mb-1">Métodos de Pago:</p>
-                  <p>Efectivo: Bs. {totales.efectivo}</p>
-                  <p>Tarjeta: Bs. {totales.tarjeta}</p>
-                  <p>QR: Bs. {totales.qr}</p>
-                  <p>Fleet: Bs. {totales.credito_fleet}</p>
-                  <p className="font-semibold text-slate-600 mt-2 mb-1">Tipos de Combustible:</p>
-                  <p>Gasolina Especial: Bs. {totales.gasolina_especial}</p>
-                  <p>Gasolina Premium: Bs. {totales.gasolina_premium}</p>
-                  <p>Diésel: Bs. {totales.diesel}</p>
-                  <p>GNV: Bs. {totales.gnv}</p>
+                <p className="text-slate-500 text-xs uppercase font-bold mb-2">Venta Total (Sistema)</p>
+                <h3 className="text-3xl font-black text-emerald-600 mb-3">Bs. {totales.ventaTotal}</h3>
+                <p className="text-[10px] text-slate-400 font-semibold mb-2">Suma de {data.tabla.length} turnos</p>
+                <div className="text-[9px] text-slate-600 space-y-1 border-t border-slate-100 pt-2">
+                  <div className="flex justify-between">
+                    <span>Efectivo:</span>
+                    <span className="font-semibold">Bs. {totales.efectivo}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tarjeta:</span>
+                    <span className="font-semibold">Bs. {totales.tarjeta}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>QR:</span>
+                    <span className="font-semibold">Bs. {totales.qr}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Fleet:</span>
+                    <span className="font-semibold">Bs. {totales.credito_fleet}</span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1 mt-1"></div>
+                  <div className="flex justify-between">
+                    <span>Gasolina Especial:</span>
+                    <span className="font-semibold">Bs. {totales.gasolina_especial}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Gasolina Premium:</span>
+                    <span className="font-semibold">Bs. {totales.gasolina_premium}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Diésel:</span>
+                    <span className="font-semibold">Bs. {totales.diesel}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>GNV:</span>
+                    <span className="font-semibold">Bs. {totales.gnv}</span>
+                  </div>
                 </div>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
