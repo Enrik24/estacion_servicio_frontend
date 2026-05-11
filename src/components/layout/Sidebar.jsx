@@ -60,7 +60,7 @@ useEffect(() => {
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
-   // { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
+    { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
   ];
 
  const ventasSubModules = [
@@ -210,16 +210,16 @@ useEffect(() => {
                 
                 {/* Enlace original a Turnos */}
                 <NavLink
-                  to="/admin/turnos"
-                  className={({ isActive }) =>
-                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                    }`
-                  }
-                >
-                  <ShoppingCart className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-sm font-medium">Historial Turnos</span>
-                </NavLink>
+  to="/admin/turnos"
+  className={({ isActive }) =>
+    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+      isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+    }`
+  }
+>
+  <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+  <span className="text-sm font-medium">Historial Turnos</span>
+</NavLink>
 
                 {/* NUEVO: Enlace a Consolidación (CU8) */}
                 <NavLink
@@ -260,9 +260,6 @@ useEffect(() => {
             )}
           </div>
         )}
-
-    </div>
-)}
         {/* Inteligencia de Negocio, Reporting */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
     <div className="pt-4 mt-4 border-t border-slate-800">

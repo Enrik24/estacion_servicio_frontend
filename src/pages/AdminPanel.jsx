@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import apiClient from '../services/api';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
@@ -1029,10 +1030,20 @@ function TurnosAdminModule() {
     const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
     const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
 
+const litrosPorTipo = turnos.reduce((acc, t) => {
+    if (t.litros_por_tipo && typeof t.litros_por_tipo === 'object') {
+        Object.entries(t.litros_por_tipo).forEach(([tipo, datos]) => {
+            if (!acc[tipo]) acc[tipo] = { cantidad: 0, unidad: 'Lt' };
+            acc[tipo].cantidad += datos.cantidad || 0;
+        });
+    }
+    return acc;
+}, {});
+
 const tiposCombustible = Object.keys(litrosPorTipo);
-const tabActivo = tabCombustible && litrosPorTipo[tabCombustible] 
-  ? tabCombustible 
-  : tiposCombustible[0] || null;
+const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
+    ? tabCombustible
+    : tiposCombustible[0] || null;
     return (
         <div className="space-y-6">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Resumen de Turnos</h2>
@@ -1247,8 +1258,11 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
         </div>
     );
 }
-export const backupService = {
-    descargar: () => apiClient.get('/backup/descargar/', { responseType: 'blob' }),
+const backupService = {
+    descargar: () => apiClient.get('/backup/descargar/', { 
+        responseType: 'blob',
+        timeout: 60000
+    }),
     restaurar: (archivo) => {
         const formData = new FormData();
         formData.append('archivo', archivo);
@@ -1264,27 +1278,27 @@ function BackupModule() {
     const [exito, setExito] = useState(null);
     const [archivoRestore, setArchivoRestore] = useState(null);
 
-    const handleDescargar = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await backupService.descargar();
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-            link.setAttribute('download', `backup_${fecha}.sql`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-            setExito('Backup descargado correctamente');
-        } catch (err) {
-            setError('Error al generar el backup');
-        } finally {
-            setLoading(false);
-        }
-    };
+const handleDescargar = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+        const response = await backupService.descargar();
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        link.setAttribute('download', `backup_${fecha}.sql`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setExito('Backup descargado correctamente');
+    } catch (err) {
+        setError('Error al generar el backup');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleRestaurar = async () => {
         if (!archivoRestore) {
