@@ -13,8 +13,15 @@ const apiClient = axios.create({
 // Request interceptor para agregar JWT token
 apiClient.interceptors.request.use(
   (config) => {
-    // No agregar token para rutas de autenticación
-    if (config.url === '/auth/login/' || config.url === '/token/refresh/' || config.url === '/token/verify/') {
+    // No agregar token para rutas de autenticación y recuperación de contraseña
+    if (
+      config.url === '/auth/login/' || 
+      config.url === '/token/refresh/' || 
+      config.url === '/token/verify/' ||
+      config.url === '/auth/request-reset/' ||
+      config.url === '/auth/register/' ||
+      config.url?.includes('/auth/reset-password/')
+    ) {
       return config;
     }
     
@@ -33,8 +40,25 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Si recibimos un 401 o la petición original era para refrescar el token y falló
+    if (originalRequest.url === '/token/refresh/' || originalRequest.url?.includes('/token/refresh/')) {
+      // Limpiamos todo el almacenamiento de sesión y local
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      sessionStorage.clear();
+      
+      // Opcional: Mostrar mensaje al usuario antes de redirigir
+      alert('Sesión expirada, por favor inicia sesión nuevamente.');
+      
+      // Redirigir al login
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
+    // Si es un 401 y no hemos intentado reintentar aún
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // No redirigir si ya estamos en login
+      // No redirigir ni reintentar si estamos en login
       if (originalRequest.url === '/auth/login/' || window.location.pathname === '/login') {
         return Promise.reject(error);
       }
@@ -44,31 +68,35 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          const response = await apiClient.post('/token/refresh/', {
+          // IMPORTANTE: Usamos 'axios.post' directamente en lugar de 'apiClient.post'
+          // para evitar que esta petición pase por el interceptor y cause un bucle infinito
+          const response = await axios.post(`${apiClient.defaults.baseURL}/token/refresh/`, {
             refresh: refreshToken,
           });
 
           const { access, refresh } = response.data;
+          
           localStorage.setItem('access_token', access);
           if (refresh) {
             localStorage.setItem('refresh_token', refresh);
           }
+          
+          // Actualizamos el token en la petición original y la reintentamos
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return apiClient(originalRequest);
         } else {
-          // Sin refresh token, redirigir a login
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-          return Promise.reject(error);
+          throw new Error('No refresh token available');
         }
       } catch (refreshError) {
-        // Falló el refresh, limpiar y redirigir
+        // Si el refresh falla (ej. backend apagado, token expirado), limpiamos y redirigimos
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
+        sessionStorage.clear();
+        
+        alert('Sesión expirada, por favor inicia sesión nuevamente.');
         window.location.href = '/login';
+        
         return Promise.reject(refreshError);
       }
     }
@@ -85,3 +113,6 @@ export { usuariosService } from './usuariosService.js';
 export { rolesService } from './rolesService.js';
 export { permisosService } from './permisosService.js';
 export { bitacoraService } from './bitacoraService.js';
+export { clientesService } from './clientesService.js';
+export { limitesConsumoService } from './limitesConsumoService.js';
+export { prediccionesIAService } from './prediccionesIAService.js';

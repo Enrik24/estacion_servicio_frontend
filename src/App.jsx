@@ -2,9 +2,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AdminPanel from './pages/AdminPanel';
 import VentasPanel from './pages/VentasPage';
 import BitacoraPage from './pages/BitacoraPage';
+import ReportesPage from './pages/ReportesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -14,6 +17,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/admin/*" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
             <AdminPanel />
@@ -27,6 +32,11 @@ function App() {
         <Route path="/bitacora" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Auditor', 'Gerente']}>
             <BitacoraPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/reportes" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente', 'Auditor']}>
+            <ReportesPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

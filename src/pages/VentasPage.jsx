@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Fuel, Clock, ShoppingCart, AlertCircle, CheckCircle } from 'lucide-react';
+import { Fuel, Clock, ShoppingCart, AlertCircle, CheckCircle, Receipt } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
+import TicketModal from '../components/ventas/TicketModal';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import PasarelaPagoModal from '../components/PasarelaPagoModal';
@@ -242,6 +243,7 @@ function RegistrarVentaModule() {
     const [exito, setExito] = useState(null);
     const [mostrarPasarela, setMostrarPasarela] = useState(false);
     const [showModal, setShowModal] = useState(false);
+
     const abrirModal = () => {
         setPaso('placa');
         setPlacaInput('');
@@ -263,6 +265,10 @@ function RegistrarVentaModule() {
     });
     const [nuevoClienteLoading, setNuevoClienteLoading] = useState(false);
     const [nuevoClienteError, setNuevoClienteError] = useState('');
+
+    const [showTicketModal, setShowTicketModal] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+
     const [formData, setFormData] = useState({
         lado_id: '',
         tipo_combustible_id: '',
@@ -381,6 +387,20 @@ const ejecutarRegistroVenta = async () => {
         }
     };
 
+    const handleShowTicket = async (id) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await ventasService.getTicket(id);
+            setSelectedTicket(response.data);
+            setShowTicketModal(true);
+        } catch (err) {
+            setError('Error al cargar el ticket');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const totalTurno = ventas.reduce((acc, v) => acc + parseFloat(v.total), 0).toFixed(2);
 
     if (!turno || !turno.id) {
@@ -490,13 +510,14 @@ const ejecutarRegistroVenta = async () => {
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Pago</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Ticket</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                             {ventas.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
                                         No hay ventas registradas en este turno
                                     </td>
                                 </tr>
@@ -517,6 +538,13 @@ const ejecutarRegistroVenta = async () => {
                                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${venta.estado === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                                                 {venta.estado}
                                             </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {venta.estado === 'COMPLETADA' && (
+                                                <button onClick={() => handleShowTicket(venta.id)} className="text-gray-500 hover:text-slate-900 transition-colors" title="Ver Ticket">
+                                                    <Receipt className="w-5 h-5" />
+                                                </button>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">
                                             {venta.estado === 'COMPLETADA' && (
@@ -810,6 +838,16 @@ const ejecutarRegistroVenta = async () => {
         onCancelar={() => setMostrarPasarela(false)}
     />
 )}
+            {showTicketModal && selectedTicket && (
+                <TicketModal 
+                    ticket={selectedTicket} 
+                    onClose={() => {
+                        setShowTicketModal(false);
+                        setSelectedTicket(null);
+                    }} 
+                />
+            )}
+
         </div>
     );
 }
