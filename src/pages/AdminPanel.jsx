@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
@@ -1029,6 +1029,24 @@ function TurnosAdminModule() {
     const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
     const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
 
+    const litrosPorTipo = useMemo(() => {
+        const mapa = {};
+        turnos.forEach(t => {
+            if (t.tipos_combustible && typeof t.tipos_combustible === 'object') {
+                Object.entries(t.tipos_combustible).forEach(([tipo, valor]) => {
+                    // Normalizar nombre: "gasolina_especial" -> "Gasolina Especial"
+                    const nombreNorm = tipo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    if (!mapa[nombreNorm]) {
+                        mapa[nombreNorm] = { cantidad: 0, unidad: 'Lt' };
+                    }
+                    mapa[nombreNorm].cantidad += Number(valor || 0);
+                });
+            }
+        });
+        return mapa;
+    }, [turnos]);
+
+
 const tiposCombustible = Object.keys(litrosPorTipo);
 const tabActivo = tabCombustible && litrosPorTipo[tabCombustible] 
   ? tabCombustible 
@@ -1096,7 +1114,7 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
   </p>
 
   {tiposCombustible.length === 0 ? (
-    <p className="text-2xl font-bold text-slate-900 mt-1">0 Lt</p>
+    <p className="text-2xl font-bold text-slate-900 mt-1">{litrosGeneral} Lt</p>
   ) : (
     <>
       <div className="flex flex-wrap gap-1 mb-3">
@@ -1145,6 +1163,7 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Apertura</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Ventas</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalle</th>
                             </tr>
@@ -1176,6 +1195,7 @@ const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas || 0}</td>
+                                        <td className="px-4 py-3 text-gray-600">{(t.total_litros || 0).toFixed(3)} Lt</td>
                                         <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {(t.total_ventas || 0).toFixed(2)}</td>
                                         <td className="px-4 py-3">
                                             <button
