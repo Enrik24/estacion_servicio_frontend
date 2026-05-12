@@ -260,9 +260,6 @@ useEffect(() => {
             )}
           </div>
         )}
-
-    </div>
-)}
         {/* Inteligencia de Negocio, Reporting */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
     <div className="pt-4 mt-4 border-t border-slate-800">
@@ -362,7 +359,7 @@ useEffect(() => {
             >
               <Shield className="w-5 h-5 flex-shrink-0" />
             </NavLink>
-        )}
+          )}
         </div>
         )}
       </nav>
