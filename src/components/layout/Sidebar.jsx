@@ -60,7 +60,7 @@ useEffect(() => {
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
-   // { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
+    { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
   ];
 
  const ventasSubModules = [
@@ -261,8 +261,7 @@ useEffect(() => {
           </div>
         )}
 
-    </div>
-)}
+
         {/* Inteligencia de Negocio, Reporting */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
     <div className="pt-4 mt-4 border-t border-slate-800">
