@@ -332,10 +332,14 @@ function RegistrarVentaModule() {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        setExito(null);
+    e.preventDefault();
+    if (formData.metodo_pago === 'QR' || formData.metodo_pago === 'TARJETA') {
+        setShowModal(false);
+        setMostrarPasarela(true);
+        return;
+    }
+    await ejecutarRegistroVenta();
+
         try {
             // Validar que turno existe
             if (!turno || !turno.id) {
@@ -472,6 +476,38 @@ function RegistrarVentaModule() {
             setNuevoClienteLoading(false);
         }
     };
+    const ejecutarRegistroVenta = async () => {
+    setLoading(true);
+    setError(null);
+    setExito(null);
+    try {
+        if (!turno || !turno.id) {
+            setError('No hay un turno activo.');
+            setLoading(false);
+            return;
+        }
+        const payload = {
+            turno_id: turno.id,
+            lado_id: parseInt(formData.lado_id),
+            tipo_combustible_id: parseInt(formData.tipo_combustible_id),
+            metodo_pago: formData.metodo_pago,
+            es_lleno: formData.es_lleno,
+        };
+        if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
+        if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
+        await ventasService.registrar(payload);
+        setExito('Venta registrada correctamente');
+        setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
+        setLitrosCalculados(null);
+        setShowModal(false);
+        await cargarDatos();
+    } catch (err) {
+        const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
+        setError(errorMsg);
+    } finally {
+        setLoading(false);
+    }
+};
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
