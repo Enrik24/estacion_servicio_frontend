@@ -1029,10 +1029,23 @@ function TurnosAdminModule() {
     const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
     const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
 
-const tiposCombustible = Object.keys(litrosPorTipo);
-const tabActivo = tabCombustible && litrosPorTipo[tabCombustible] 
-  ? tabCombustible 
-  : tiposCombustible[0] || null;
+    // Agregar litros por tipo de combustible de todos los turnos
+    const litrosPorTipo = {};
+    turnos.forEach(turno => {
+        if (turno.litros_por_tipo && typeof turno.litros_por_tipo === 'object') {
+            Object.entries(turno.litros_por_tipo).forEach(([tipo, datos]) => {
+                if (!litrosPorTipo[tipo]) {
+                    litrosPorTipo[tipo] = { cantidad: 0, unidad: datos.unidad || 'Lt' };
+                }
+                litrosPorTipo[tipo].cantidad += parseFloat(datos.cantidad || 0);
+            });
+        }
+    });
+
+    const tiposCombustible = Object.keys(litrosPorTipo);
+    const tabActivo = tabCombustible && litrosPorTipo[tabCombustible] 
+      ? tabCombustible 
+      : tiposCombustible[0] || null;
     return (
         <div className="space-y-6">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Resumen de Turnos</h2>
