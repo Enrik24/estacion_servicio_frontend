@@ -114,30 +114,38 @@ function Header({
             <div className="flex items-center space-x-2">
               {/* Notification bell - outside avatar button */}
               <button 
-                className="p-2 hover:bg-slate-700 rounded-full transition"
+                className={`p-2 rounded-full transition ${
+                  variant === 'dark' || scrolled || (transparent && !scrolled)
+                    ? 'hover:bg-slate-700'
+                    : 'hover:bg-slate-100'
+                }`}
                 onClick={() => {
                   // TODO: Open notifications panel
                 }}
               >
-                <Bell className="w-5 h-5 text-white" />
+                <Bell className={`w-5 h-5 ${textStyles}`} />
               </button>
               
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center space-x-3 hover:bg-slate-800 px-3 py-2 rounded-lg transition"
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                    variant === 'dark' || scrolled || (transparent && !scrolled)
+                      ? 'hover:bg-slate-800'
+                      : 'hover:bg-slate-100'
+                  }`}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-white">{userName}</p>
-                      <p className="text-xs text-gray-400">{userRole}</p>
+                      <p className={`text-sm font-semibold ${textStyles}`}>{userName}</p>
+                      <p className={`text-xs ${variant === 'light' && !scrolled ? 'text-gray-500' : 'text-gray-400'}`}>{userRole}</p>
                     </div>
                     <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
                       <span className="text-slate-900 font-bold">
                         {userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                       </span>
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-white transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 ${textStyles} transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
 
