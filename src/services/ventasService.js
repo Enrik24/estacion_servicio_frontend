@@ -15,8 +15,8 @@ export const tiposCombustibleService = {
 };
 
 export const clientesService = {
-    getAll: () => apiClient.get('/ventas-clientes/'),
-    getOne: (id) => apiClient.get(`/ventas-clientes/${id}/`),
+    getAll: () => apiClient.get('/clientes-ventas/'),
+    getOne: (id) => apiClient.get(`/clientes-ventas/${id}/`),
 };
 
 export const ventasService = {
@@ -24,6 +24,7 @@ export const ventasService = {
     getMiTurnoVentas: () => apiClient.get('/ventas/mi_turno_ventas/'),
     registrar: (data) => apiClient.post('/ventas/', data),
     anular: (id) => apiClient.post(`/ventas/${id}/anular/`),
+    getTicket: (id) => apiClient.get(`/ventas/${id}/ticket/`),
 };
 export const sucursalesService = {
     getAll: () => apiClient.get('/sucursales/'),

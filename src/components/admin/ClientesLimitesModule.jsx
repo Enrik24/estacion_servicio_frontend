@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { clientesService, limitesConsumoService } from '../../services/api';
+import { clientesService, limitesConsumoService, usuariosService } from '../../services/api';
 
 const LIMITE_FORM_INICIAL = {
   cliente_id: '',
@@ -21,13 +21,6 @@ function ClientesLimitesModule() {
   const [editingCliente, setEditingCliente] = useState(null);
   const [formData, setFormData] = useState(LIMITE_FORM_INICIAL);
   const [loading, setLoading] = useState(false);
-  const [consumoModal, setConsumoModal] = useState({
-    open: false,
-    loading: false,
-    clienteNombre: '',
-    resumen: null,
-    error: '',
-  });
 
   useEffect(() => {
     cargarDatos();
@@ -36,12 +29,15 @@ function ClientesLimitesModule() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      const [clientesRes, limitesRes] = await Promise.all([
-        clientesService.getAll(),
+      const [usuariosRes, limitesRes] = await Promise.all([
+        usuariosService.getAll(),
         limitesConsumoService.getAll(),
       ]);
-      const clientesData = Array.isArray(clientesRes.data) ? clientesRes.data : clientesRes.data.results || [];
-      setClientes(clientesData);
+      const usuarios = Array.isArray(usuariosRes.data) ? usuariosRes.data : usuariosRes.data.results || [];
+      const soloClientes = usuarios.filter((usuario) =>
+        (usuario.roles_detalle || []).some((rol) => (rol.nombre || '').toLowerCase() === 'cliente')
+      );
+      setClientes(soloClientes);
       setLimites(Array.isArray(limitesRes.data) ? limitesRes.data : limitesRes.data.results || []);
     } catch (error) {
       alert(`Error al cargar clientes/límites: ${error.response?.data?.detail || error.message}`);
@@ -131,44 +127,11 @@ function ClientesLimitesModule() {
     }
   };
 
-  const formatearValor = (valor, unidad) => {
-    if (valor === null || valor === undefined) return 'Sin límite';
-    if (unidad === 'LITROS') return `${Number(valor || 0).toFixed(2)} Lt`;
-    return formatearBs(valor);
-  };
-
-  const claseEstado = (estado) => {
-    if (estado === 'EXCEDIDO') return 'bg-red-100 text-red-700';
-    if (estado === 'SIN_LIMITE') return 'bg-gray-100 text-gray-700';
-    return 'bg-emerald-100 text-emerald-700';
-  };
-
-  const verConsumo = async (cliente) => {
-    setConsumoModal({
-      open: true,
-      loading: true,
-      clienteNombre: cliente.nombre,
-      resumen: null,
-      error: '',
-    });
-    try {
-      const response = await limitesConsumoService.resumenConsumo(cliente.id);
-      setConsumoModal({
-        open: true,
-        loading: false,
-        clienteNombre: response.data?.cliente_nombre || cliente.nombre,
-        resumen: response.data?.resumen || {},
-        error: '',
-      });
-    } catch (error) {
-      setConsumoModal({
-        open: true,
-        loading: false,
-        clienteNombre: cliente.nombre,
-        resumen: null,
-        error: error.response?.data?.detail || 'No se pudo obtener el resumen de consumo.',
-      });
-    }
+  const verConsumo = (cliente) => {
+    const limitesCliente = limitesPorCliente[cliente.id] || {};
+    const diario = limitesCliente.DIARIO?.valor || 0;
+    const mensual = limitesCliente.MENSUAL?.valor || 0;
+    alert(`Consumo configurado para ${cliente.nombre}\nLímite diario: ${formatearBs(diario)}\nLímite mensual: ${formatearBs(mensual)}`);
   };
 
   return (
@@ -279,47 +242,6 @@ function ClientesLimitesModule() {
                 <Button type="button" className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300" onClick={() => setShowModal(false)}>Cancelar</Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {consumoModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold">Consumo y saldo disponible</h3>
-              <button
-                className="text-gray-500 hover:text-gray-800"
-                onClick={() => setConsumoModal((prev) => ({ ...prev, open: false }))}
-              >
-                Cerrar
-              </button>
-            </div>
-            <p className="text-gray-600 mb-4">Cliente: <span className="font-semibold text-slate-900">{consumoModal.clienteNombre}</span></p>
-
-            {consumoModal.loading && <p className="text-sm text-gray-500">Cargando resumen...</p>}
-            {consumoModal.error && <p className="text-sm text-red-600">{consumoModal.error}</p>}
-
-            {!consumoModal.loading && !consumoModal.error && (
-              <div className="grid md:grid-cols-2 gap-4">
-                {['DIARIO', 'MENSUAL'].map((tipo) => {
-                  const data = consumoModal.resumen?.[tipo] || {};
-                  return (
-                    <div key={tipo} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-lg font-semibold text-slate-900">{tipo === 'DIARIO' ? 'Diario' : 'Mensual'}</h4>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${claseEstado(data.estado)}`}>
-                          {data.estado || 'SIN_LIMITE'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">Límite: <span className="font-semibold text-slate-900">{formatearValor(data.limite_configurado, data.unidad)}</span></p>
-                      <p className="text-sm text-gray-600 mb-1">Consumido: <span className="font-semibold text-slate-900">{formatearValor(data.consumo_acumulado, data.unidad)}</span></p>
-                      <p className="text-sm text-gray-600">Le queda: <span className="font-semibold text-slate-900">{formatearValor(data.saldo_restante, data.unidad)}</span></p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       )}

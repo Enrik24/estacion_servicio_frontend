@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { clientesService, prediccionesIAService } from '../../services/api';
+import { usuariosService, prediccionesIAService } from '../../services/api';
 
 function PrediccionesIAModule() {
   const [clientes, setClientes] = useState([]);
@@ -24,9 +24,12 @@ function PrediccionesIAModule() {
     setLoadingClientes(true);
     setError('');
     try {
-      const response = await clientesService.getAll();
-      const clientesData = Array.isArray(response.data) ? response.data : response.data.results || [];
-      setClientes(clientesData);
+      const response = await usuariosService.getAll();
+      const usersData = Array.isArray(response.data) ? response.data : response.data.results || [];
+      const soloClientes = usersData.filter((user) =>
+        (user.roles_detalle || []).some((rol) => (rol.nombre || '').toLowerCase() === 'cliente')
+      );
+      setClientes(soloClientes);
     } catch (err) {
       console.error(err);
       setError('No se pudieron cargar los clientes.');

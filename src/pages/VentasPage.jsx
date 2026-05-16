@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Fuel, Clock, ShoppingCart, AlertCircle, CheckCircle } from 'lucide-react';
+import { Fuel, Clock, ShoppingCart, AlertCircle, CheckCircle, Receipt } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
+import TicketModal from '../components/ventas/TicketModal';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import PasarelaPagoModal from '../components/PasarelaPagoModal';
 import { turnosService, islasService, ladosService, tiposCombustibleService, clientesService, ventasService, vehiculosService } from '../services/ventasService';
 
 function TurnoModule() {
@@ -239,37 +241,54 @@ function RegistrarVentaModule() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [exito, setExito] = useState(null);
+    const [mostrarPasarela, setMostrarPasarela] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const ventaRequestIdRef = useRef(null);
+
     const abrirModal = () => {
-    setPaso('placa');
-    setPlacaInput('');
-    setPlacaError('');
-    setClienteEncontrado(null);
-    setFormNuevoCliente({ nombre: '', nit: '', telefono: '', placa: '', marca: '', modelo: '', color: '' });
-    setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
-    setLitrosCalculados(null);
-    setShowModal(true);
-};
+        setPaso('placa');
+        setPlacaInput('');
+        setPlacaError('');
+        setClienteEncontrado(null);
+        setFormNuevoCliente({ nombre: '', nit: '', telefono: '', placa: '', marca: '', modelo: '', color: '' });
+        setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO' });
+        setLitrosCalculados(null);
+        ventaRequestIdRef.current = null;
+        setSelectedClienteId('');
+        setShowModal(true);
+    };
     const [paso, setPaso] = useState('placa'); // 'placa' | 'nuevo_cliente' | 'venta'
     const [placaInput, setPlacaInput] = useState('');
     const [placaLoading, setPlacaLoading] = useState(false);
     const [placaError, setPlacaError] = useState('');
     const [clienteEncontrado, setClienteEncontrado] = useState(null);
     const [formNuevoCliente, setFormNuevoCliente] = useState({
-        nombre: '', nit: '', telefono: '', placa: '',
+        nombre: '', ci: '', nit: '', telefono: '', placa: '',
         marca: '', modelo: '', color: ''
     });
     const [nuevoClienteLoading, setNuevoClienteLoading] = useState(false);
     const [nuevoClienteError, setNuevoClienteError] = useState('');
+
+    const [showTicketModal, setShowTicketModal] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState(null);
+
     const [formData, setFormData] = useState({
         lado_id: '',
         tipo_combustible_id: '',
         monto_bs: '',
         es_lleno: false,
-        metodo_pago: 'EFECTIVO',
-        cliente_id: ''
+        metodo_pago: 'EFECTIVO'
     });
+    const [selectedClienteId, setSelectedClienteId] = useState('');
     const [litrosCalculados, setLitrosCalculados] = useState(null);
+    const selectedCliente = clientes.find(c => String(c.id) === String(selectedClienteId)) || null;
+    const detectedClienteVisible = clienteEncontrado
+        ? clientes.find(c => String(c.id) === String(clienteEncontrado.cliente_id)) || null
+        : null;
+    const limpiarSeleccionCliente = () => {
+        setClienteEncontrado(null);
+        setSelectedClienteId('');
+    };
     useEffect(() => {
         cargarDatos();
     }, []);
@@ -313,7 +332,13 @@ function RegistrarVentaModule() {
             const tiposData = Array.isArray(tiposRes.data) ? tiposRes.data : tiposRes.data.results || [];
             setTiposCombustible(tiposData);
             const clientesData = Array.isArray(clientesRes.data) ? clientesRes.data : clientesRes.data.results || [];
-            setClientes(clientesData);
+            const clientesOrdenados = [...clientesData].sort((a, b) => {
+                const aMovil = Number(Boolean(a.usuario_id || a.cuenta_movil_email || a.email));
+                const bMovil = Number(Boolean(b.usuario_id || b.cuenta_movil_email || b.email));
+                if (aMovil !== bMovil) return bMovil - aMovil;
+                return (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' });
+            });
+            setClientes(clientesOrdenados);
             const ventasData = Array.isArray(ventasRes.data) ? ventasRes.data : ventasRes.data.ventas || [];
             setVentas(ventasData);
         } catch (err) {
@@ -325,29 +350,15 @@ function RegistrarVentaModule() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError(null);
-        setExito(null);
-        try {
-            const payload = {
-                lado_id: parseInt(formData.lado_id),
-                tipo_combustible_id: parseInt(formData.tipo_combustible_id),
-                metodo_pago: formData.metodo_pago,
-                es_lleno: formData.es_lleno,
-            };
-            if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
-            if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
-            await ventasService.registrar(payload);
-            setExito('Venta registrada correctamente');
-            setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
-            setLitrosCalculados(null);
-            setShowModal(false);
-            await cargarDatos();
-        } catch (err) {
-            setError(err.response?.data?.error || 'Error al registrar la venta');
-        } finally {
-            setLoading(false);
+        if (!ventaRequestIdRef.current) {
+            ventaRequestIdRef.current = crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
         }
+        if (formData.metodo_pago === 'QR' || formData.metodo_pago === 'TARJETA') {
+            setShowModal(false);
+            setMostrarPasarela(true);
+            return;
+        }
+        await ejecutarRegistroVenta();
     };
 
     const handleAnular = async (id) => {
@@ -357,6 +368,20 @@ function RegistrarVentaModule() {
             await cargarDatos();
         } catch (err) {
             setError('Error al anular la venta');
+        }
+    };
+
+    const handleShowTicket = async (id) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await ventasService.getTicket(id);
+            setSelectedTicket(response.data);
+            setShowTicketModal(true);
+        } catch (err) {
+            setError('Error al cargar el ticket');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -372,42 +397,101 @@ function RegistrarVentaModule() {
         );
     }
     const buscarPlaca = async () => {
-    if (!placaInput.trim()) return;
-    setPlacaLoading(true);
-    setPlacaError('');
-    try {
-        const res = await vehiculosService.buscarPorPlaca(placaInput.trim());
-        if (res.data.encontrado) {
-            const v = res.data.vehiculo;
-            setClienteEncontrado(v);
-            setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
-            setPaso('venta');
-        } else {
-            setFormNuevoCliente(prev => ({ ...prev, placa: placaInput.trim().toUpperCase() }));
-            setPaso('nuevo_cliente');
+        if (!placaInput.trim()) return;
+        setPlacaLoading(true);
+        setPlacaError('');
+        try {
+            const res = await vehiculosService.buscarPorPlaca(placaInput.trim());
+            if (res.data.encontrado) {
+                const v = res.data.vehiculo;
+                setClienteEncontrado(v);
+                const clienteMovil = clientes.find(c => String(c.id) === String(v.cliente_id));
+                setSelectedClienteId(clienteMovil ? String(v.cliente_id) : '');
+                if (!clienteMovil) {
+                    setPlacaError(`La placa pertenece a ${v.cliente_nombre}, pero ese cliente no tiene cuenta móvil vinculada. Selecciona manualmente uno de tus clientes móviles antes de registrar la venta.`);
+                }
+                setPaso('venta');
+            } else {
+                setFormNuevoCliente(prev => ({ ...prev, placa: placaInput.trim().toUpperCase() }));
+                setPaso('nuevo_cliente');
+            }
+        } catch {
+            setPlacaError('Error al buscar la placa');
+        } finally {
+            setPlacaLoading(false);
         }
-    } catch {
-        setPlacaError('Error al buscar la placa');
-    } finally {
-        setPlacaLoading(false);
-    }
-};
+    };
 
-const registrarNuevoCliente = async () => {
-    setNuevoClienteLoading(true);
-    setNuevoClienteError('');
+    const registrarNuevoCliente = async () => {
+        setNuevoClienteLoading(true);
+        setNuevoClienteError('');
+        try {
+            const res = await vehiculosService.registrarClienteVehiculo(formNuevoCliente);
+            const v = res.data.vehiculo;
+
+            // ✅ Mostrar credenciales si fueron creadas
+            if (res.data.credenciales && !res.data.credenciales.error) {
+                const { email, password } = res.data.credenciales;
+                alert(`✅ Cliente registrado\n\nCredenciales para app móvil:\nEmail: ${email}\nContraseña: ${password}\n\nInforme al cliente estas credenciales.`);
+            }
+
+            setClienteEncontrado(v);
+            setSelectedClienteId(String(v.cliente_id));
+            setPaso('venta');
+        } catch (err) {
+            const errData = err.response?.data;
+            const msg = errData?.placa?.[0] || errData?.nit?.[0] || errData?.nombre?.[0] || 'Error al registrar';
+            setNuevoClienteError(msg);
+        } finally {
+            setNuevoClienteLoading(false);
+        }
+    };
+    const ejecutarRegistroVenta = async () => {
+    setLoading(true);
+    setError(null);
+    setExito(null);
     try {
-        const res = await vehiculosService.registrarClienteVehiculo(formNuevoCliente);
-        const v = res.data.vehiculo;
-        setClienteEncontrado(v);
-        setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
-        setPaso('venta');
+        if (!turno || !turno.id) {
+            setError('No hay un turno activo.');
+            setLoading(false);
+            return;
+        }
+        const clientRequestId = ventaRequestIdRef.current || (crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+        ventaRequestIdRef.current = clientRequestId;
+        const clienteVisibleSeleccionado = clientes.find(c => String(c.id) === String(selectedClienteId)) || null;
+        if (selectedClienteId && !clienteVisibleSeleccionado) {
+            setError('El cliente seleccionado no coincide con tus clientes móviles visibles. Vuelve a elegir fer, alexander u otro cliente válido antes de registrar la venta.');
+            setLoading(false);
+            return;
+        }
+        if (clienteEncontrado && !detectedClienteVisible && !clienteVisibleSeleccionado) {
+            setError('La placa encontrada pertenece a un cliente sin cuenta móvil. Debes seleccionar manualmente a fer, alexander u otro cliente móvil antes de registrar la venta.');
+            setLoading(false);
+            return;
+        }
+        const payload = {
+            turno_id: turno.id,
+            lado_id: parseInt(formData.lado_id),
+            tipo_combustible_id: parseInt(formData.tipo_combustible_id),
+            metodo_pago: formData.metodo_pago,
+            es_lleno: formData.es_lleno,
+            client_request_id: clientRequestId,
+        };
+        if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
+        if (selectedClienteId) payload.cliente_id = parseInt(selectedClienteId);
+        await ventasService.registrar(payload);
+        setExito('Venta registrada correctamente');
+        ventaRequestIdRef.current = null;
+        setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO' });
+        setSelectedClienteId('');
+        setLitrosCalculados(null);
+        setShowModal(false);
+        await cargarDatos();
     } catch (err) {
-        const errData = err.response?.data;
-        const msg = errData?.placa?.[0] || errData?.nit?.[0] || errData?.nombre?.[0] || 'Error al registrar';
-        setNuevoClienteError(msg);
+        const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
+        setError(errorMsg);
     } finally {
-        setNuevoClienteLoading(false);
+        setLoading(false);
     }
 };
     return (
@@ -462,13 +546,14 @@ const registrarNuevoCliente = async () => {
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Pago</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Ticket</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                             {ventas.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
                                         No hay ventas registradas en este turno
                                     </td>
                                 </tr>
@@ -492,6 +577,13 @@ const registrarNuevoCliente = async () => {
                                         </td>
                                         <td className="px-4 py-3">
                                             {venta.estado === 'COMPLETADA' && (
+                                                <button onClick={() => handleShowTicket(venta.id)} className="text-gray-500 hover:text-slate-900 transition-colors" title="Ver Ticket">
+                                                    <Receipt className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {venta.estado === 'COMPLETADA' && (
                                                 <button onClick={() => handleAnular(venta.id)} className="text-red-600 hover:text-red-800 text-xs">
                                                     Anular
                                                 </button>
@@ -506,268 +598,332 @@ const registrarNuevoCliente = async () => {
             </div>
 
             {showModal && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
 
-            {/* PASO 1 — Buscar placa */}
-            {paso === 'placa' && (
-                <>
-                    <h3 className="text-xl font-bold mb-1">Nueva Venta — Isla {turno.isla_numero}</h3>
-                    <p className="text-sm text-gray-500 mb-5">Ingresa la placa del vehículo para identificar al cliente</p>
-                    <div className="space-y-4">
-                        <Input
-                            label="Placa del vehículo"
-                            value={placaInput}
-                            onChange={(e) => setPlacaInput(e.target.value.toUpperCase())}
-                            placeholder="Ej: 2345-ABC"
-                            onKeyDown={(e) => e.key === 'Enter' && buscarPlaca()}
-                            required
-                        />
-                        {placaError && (
-                            <p className="text-xs text-red-500">{placaError}</p>
+                        {/* PASO 1 — Buscar placa */}
+                        {paso === 'placa' && (
+                            <>
+                                <h3 className="text-xl font-bold mb-1">Nueva Venta — Isla {turno.isla_numero}</h3>
+                                <p className="text-sm text-gray-500 mb-5">Ingresa la placa del vehículo para identificar al cliente</p>
+                                <div className="space-y-4">
+                                    <Input
+                                        label="Placa del vehículo"
+                                        value={placaInput}
+                                        onChange={(e) => setPlacaInput(e.target.value.toUpperCase())}
+                                        placeholder="Ej: 2345-ABC"
+                                        onKeyDown={(e) => e.key === 'Enter' && buscarPlaca()}
+                                        required
+                                    />
+                                    {placaError && (
+                                        <p className="text-xs text-red-500">{placaError}</p>
+                                    )}
+                                    <div className="flex gap-3 pt-1">
+                                        <Button onClick={buscarPlaca} loading={placaLoading}>
+                                            Buscar
+                                        </Button>
+                                        <Button
+                                            onClick={() => setShowModal(false)}
+                                            className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
+                                        >
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            limpiarSeleccionCliente();
+                                            setPlacaError('');
+                                            setPaso('venta');
+                                        }}
+                                        className="text-xs text-gray-400 hover:text-gray-600 underline w-full text-center pt-1"
+                                    >
+                                        Continuar sin identificar vehículo
+                                    </button>
+                                </div>
+                            </>
                         )}
-                        <div className="flex gap-3 pt-1">
-                            <Button onClick={buscarPlaca} loading={placaLoading}>
-                                Buscar
-                            </Button>
-                            <Button
-                                onClick={() => setShowModal(false)}
-                                className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
-                            >
-                                Cancelar
-                            </Button>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setPaso('venta')}
-                            className="text-xs text-gray-400 hover:text-gray-600 underline w-full text-center pt-1"
-                        >
-                            Continuar sin identificar vehículo
-                        </button>
-                    </div>
-                </>
-            )}
 
-            {/* PASO 2 — Registrar cliente nuevo */}
-            {paso === 'nuevo_cliente' && (
-                <>
-                    <h3 className="text-xl font-bold mb-1">Vehículo no encontrado</h3>
-                    <p className="text-sm text-gray-500 mb-5">
-                        Placa <span className="font-semibold text-slate-800">{formNuevoCliente.placa}</span> no está registrada. Completa los datos para registrar al cliente.
-                    </p>
-                    <div className="space-y-3">
-                        <Input
-                            label="Nombre completo"
-                            value={formNuevoCliente.nombre}
-                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nombre: e.target.value })}
-                            placeholder="Ej: Juan Pérez"
-                            required
-                        />
-                        <Input
-                            label="NIT (opcional)"
-                            value={formNuevoCliente.nit}
-                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nit: e.target.value })}
-                            placeholder="Ej: 12345678"
-                        />
-                        <Input
-                            label="Teléfono (opcional)"
-                            value={formNuevoCliente.telefono}
-                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, telefono: e.target.value })}
-                            placeholder="Ej: 70012345"
-                        />
-                        <div className="grid grid-cols-3 gap-2">
-                            <Input
-                                label="Marca"
-                                value={formNuevoCliente.marca}
-                                onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, marca: e.target.value })}
-                                placeholder="Toyota"
-                            />
-                            <Input
-                                label="Modelo"
-                                value={formNuevoCliente.modelo}
-                                onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, modelo: e.target.value })}
-                                placeholder="Corolla"
-                            />
-                            <Input
-                                label="Color"
-                                value={formNuevoCliente.color}
-                                onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, color: e.target.value })}
-                                placeholder="Blanco"
-                            />
-                        </div>
-                        {nuevoClienteError && (
-                            <p className="text-xs text-red-500">{nuevoClienteError}</p>
-                        )}
-                        <div className="flex gap-3 pt-1">
-                            <Button onClick={registrarNuevoCliente} loading={nuevoClienteLoading}>
-                                Registrar y continuar
-                            </Button>
-                            <Button
-                                onClick={() => setPaso('placa')}
-                                className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
-                            >
-                                Volver
-                            </Button>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* PASO 3 — Formulario de venta */}
-            {paso === 'venta' && (
-                <>
-                    <h3 className="text-xl font-bold mb-1">Nueva Venta — Isla {turno.isla_numero}</h3>
-
-                    {/* Banner cliente identificado */}
-                    {clienteEncontrado && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-gray-500 uppercase font-semibold">Cliente</p>
-                                <p className="text-sm font-bold text-slate-800">{clienteEncontrado.cliente_nombre}</p>
-                                <p className="text-xs text-gray-400">
-                                    {clienteEncontrado.placa}
-                                    {clienteEncontrado.cliente_telefono ? ` · ${clienteEncontrado.cliente_telefono}` : ''}
+                        {/* PASO 2 — Registrar cliente nuevo */}
+                        {paso === 'nuevo_cliente' && (
+                            <>
+                                <h3 className="text-xl font-bold mb-1">Vehículo no encontrado</h3>
+                                <p className="text-sm text-gray-500 mb-5">
+                                    Placa <span className="font-semibold text-slate-800">{formNuevoCliente.placa}</span> no está registrada. Completa los datos para registrar al cliente.
                                 </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setClienteEncontrado(null);
-                                    setFormData(prev => ({ ...prev, cliente_id: '' }));
-                                    setPaso('placa');
-                                }}
-                                className="text-xs text-gray-400 hover:text-gray-600 underline"
-                            >
-                                Cambiar
-                            </button>
-                        </div>
-                    )}
+                                <div className="space-y-3">
+                                    <Input
+                                        label="Nombre completo"
+                                        value={formNuevoCliente.nombre}
+                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nombre: e.target.value })}
+                                        placeholder="Ej: Juan Pérez"
+                                        required
+                                    />
+                                    {/* ✅ NUEVO CAMPO CI */}
+                                    <Input
+                                        label="Carnet de identidad (CI)"
+                                        value={formNuevoCliente.ci}
+                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, ci: e.target.value })}
+                                        placeholder="Ej: 7543112"
+                                        required
+                                    />
+                                    <Input
+                                        label="NIT (opcional)"
+                                        value={formNuevoCliente.nit}
+                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nit: e.target.value })}
+                                        placeholder="Ej: 12345678"
+                                    />
+                                    <Input
+                                        label="Teléfono (opcional)"
+                                        value={formNuevoCliente.telefono}
+                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, telefono: e.target.value })}
+                                        placeholder="Ej: 70012345"
+                                    />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <Input
+                                            label="Marca"
+                                            value={formNuevoCliente.marca}
+                                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, marca: e.target.value })}
+                                            placeholder="Toyota"
+                                        />
+                                        <Input
+                                            label="Modelo"
+                                            value={formNuevoCliente.modelo}
+                                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, modelo: e.target.value })}
+                                            placeholder="Corolla"
+                                        />
+                                        <Input
+                                            label="Color"
+                                            value={formNuevoCliente.color}
+                                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, color: e.target.value })}
+                                            placeholder="Blanco"
+                                        />
+                                    </div>
+                                    {nuevoClienteError && (
+                                        <p className="text-xs text-red-500">{nuevoClienteError}</p>
+                                    )}
+                                    <div className="flex gap-3 pt-1">
+                                        <Button onClick={registrarNuevoCliente} loading={nuevoClienteLoading}>
+                                            Registrar y continuar
+                                        </Button>
+                                        <Button
+                                            onClick={() => setPaso('placa')}
+                                            className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
+                                        >
+                                            Volver
+                                        </Button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Lado</label>
-                            <select
-                                value={formData.lado_id}
-                                onChange={(e) => setFormData({ ...formData, lado_id: e.target.value })}
-                                className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                required
-                            >
-                                <option value="">Selecciona el lado</option>
-                                {lados.map(l => (
-                                    <option key={l.id} value={l.id}>{l.nombre_completo}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Tipo de combustible</label>
-                            <select
-                                value={formData.tipo_combustible_id}
-                                onChange={(e) => setFormData({ ...formData, tipo_combustible_id: e.target.value })}
-                                className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                required
-                            >
-                                <option value="">Selecciona el combustible</option>
-                                {tiposCombustible.map(t => (
-                                    <option key={t.id} value={t.id}>{t.tipo_display} - Bs. {t.precio_litro}/Lt</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Tipo de despacho</label>
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, es_lleno: false, monto_bs: '' })}
-                                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${!formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                                >
-                                    Por monto (Bs)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, es_lleno: true, monto_bs: '' })}
-                                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                                >
-                                    Lleno
-                                </button>
-                            </div>
-                        </div>
-                        {!formData.es_lleno && (
-                            <Input
-                                label="Monto en Bs"
-                                type="number"
-                                step="0.01"
-                                value={formData.monto_bs}
-                                onChange={(e) => setFormData({ ...formData, monto_bs: e.target.value })}
-                                required={!formData.es_lleno}
-                                placeholder="Ej: 100.00"
-                            />
-                        )}
-                        {!formData.es_lleno && litrosCalculados && (
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1">
-                                <p className="text-sm text-emerald-700 font-semibold">Litros a despachar: {litrosCalculados} Lt</p>
-                                <p className="text-xs text-emerald-600">Total a cobrar: Bs. {formData.monto_bs}</p>
-                            </div>
-                        )}
-                        {formData.es_lleno && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <p className="text-sm text-amber-700 font-semibold">Despacho completo — el total se registrará al finalizar</p>
-                            </div>
-                        )}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Método de pago</label>
-                            <select
-                                value={formData.metodo_pago}
-                                onChange={(e) => setFormData({ ...formData, metodo_pago: e.target.value })}
-                                className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                required
-                            >
-                                <option value="EFECTIVO">Efectivo</option>
-                                <option value="TARJETA">Tarjeta</option>
-                                <option value="QR">Pago QR</option>
-                                <option value="CREDITO_FLEET">Crédito Fleet</option>
-                            </select>
-                        </div>
+                        {/* PASO 3 — Formulario de venta */}
+                        {paso === 'venta' && (
+                            <>
+                                <h3 className="text-xl font-bold mb-1">Nueva Venta — Isla {turno.isla_numero}</h3>
 
-                        {/* Cliente — solo si no vino de búsqueda de placa */}
-                        {!clienteEncontrado && (
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Cliente (opcional)</label>
-                                <select
-                                    value={formData.cliente_id}
-                                    onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
-                                    className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                >
-                                    <option value="">Sin cliente</option>
-                                    {clientes.map(c => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.nombre} {c.nit ? `- NIT: ${c.nit}` : '- Sin NIT'}
-                                        </option>
-                                    ))}
-                                </select>
-                                {clientes.length === 0 && (
-                                    <p className="mt-2 text-xs text-amber-600">
-                                        No hay clientes registrados en ventas. Registra uno por placa para seleccionarlo aquí.
-                                    </p>
+                                {/* Banner cliente identificado */}
+                                {clienteEncontrado && (
+                                    <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase font-semibold">Cliente</p>
+                                            <p className="text-sm font-bold text-slate-800">{clienteEncontrado.cliente_nombre}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {clienteEncontrado.placa}
+                                                {clienteEncontrado.cliente_telefono ? ` · ${clienteEncontrado.cliente_telefono}` : ''}
+                                            </p>
+                                            {!detectedClienteVisible && (
+                                                <p className="text-xs text-amber-700 mt-2 font-medium">
+                                                    Este cliente encontrado por placa no pertenece a tus clientes móviles visibles. Debes elegir manualmente el cliente correcto en el selector.
+                                                </p>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                limpiarSeleccionCliente();
+                                                setPaso('placa');
+                                            }}
+                                            className="text-xs text-gray-400 hover:text-gray-600 underline"
+                                        >
+                                            Cambiar
+                                        </button>
+                                    </div>
                                 )}
-                            </div>
-                        )}
 
-                        <div className="flex gap-3 pt-2">
-                            <Button type="submit" loading={loading}>Registrar Venta</Button>
-                            <Button
-                                type="button"
-                                onClick={() => setShowModal(false)}
-                                className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
-                            >
-                                Cancelar
-                            </Button>
-                        </div>
-                    </form>
-                </>
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Lado</label>
+                                        <select
+                                            value={formData.lado_id}
+                                            onChange={(e) => setFormData({ ...formData, lado_id: e.target.value })}
+                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                            required
+                                        >
+                                            <option value="">Selecciona el lado</option>
+                                            {lados.map(l => (
+                                                <option key={l.id} value={l.id}>{l.nombre_completo}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Tipo de combustible</label>
+                                        <select
+                                            value={formData.tipo_combustible_id}
+                                            onChange={(e) => setFormData({ ...formData, tipo_combustible_id: e.target.value })}
+                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                            required
+                                        >
+                                            <option value="">Selecciona el combustible</option>
+                                            {tiposCombustible.map(t => (
+                                                <option key={t.id} value={t.id}>{t.tipo_display} - Bs. {t.precio_litro}/Lt</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Tipo de despacho</label>
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, es_lleno: false, monto_bs: '' })}
+                                                className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${!formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                                            >
+                                                Por monto (Bs)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, es_lleno: true, monto_bs: '' })}
+                                                className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                                            >
+                                                Lleno
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {!formData.es_lleno && (
+                                        <Input
+                                            label="Monto en Bs"
+                                            type="number"
+                                            step="0.01"
+                                            value={formData.monto_bs}
+                                            onChange={(e) => setFormData({ ...formData, monto_bs: e.target.value })}
+                                            required={!formData.es_lleno}
+                                            placeholder="Ej: 100.00"
+                                        />
+                                    )}
+                                    {!formData.es_lleno && litrosCalculados && (
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1">
+                                            <p className="text-sm text-emerald-700 font-semibold">Litros a despachar: {litrosCalculados} Lt</p>
+                                            <p className="text-xs text-emerald-600">Total a cobrar: Bs. {formData.monto_bs}</p>
+                                        </div>
+                                    )}
+                                    {formData.es_lleno && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                            <p className="text-sm text-amber-700 font-semibold">Despacho completo — el total se registrará al finalizar</p>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Método de pago</label>
+                                        <select
+                                            value={formData.metodo_pago}
+                                            onChange={(e) => setFormData({ ...formData, metodo_pago: e.target.value })}
+                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                            required
+                                        >
+                                            <option value="EFECTIVO">Efectivo</option>
+                                            <option value="TARJETA">Tarjeta</option>
+                                            <option value="QR">Pago QR</option>
+                                            <option value="CREDITO_FLEET">Crédito Fleet</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Cliente (opcional)</label>
+                                        <select
+                                            value={selectedClienteId}
+                                            onChange={(e) => {
+                                                const nextClienteId = e.target.value;
+                                                setSelectedClienteId(nextClienteId);
+                                                if (clienteEncontrado) {
+                                                    setClienteEncontrado(null);
+                                                }
+                                            }}
+                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                        >
+                                            <option value="">Sin cliente</option>
+                                            {clientes.map(c => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.nombre}
+                                                    {(c.cuenta_movil_email || c.email) ? ` - ${c.cuenta_movil_email || c.email}` : ' - sin email'}
+                                                    {c.historial_movil_habilitado ? ' - app movil' : ''}
+                                                    {c.nit ? ` - NIT: ${c.nit}` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="mt-2 text-xs text-gray-500">
+                                            Selecciona el cliente con correo y etiqueta <span className="font-semibold">app movil</span> para que la compra aparezca en su historial.
+                                        </p>
+                                    </div>
+
+                                    <div className={`rounded-lg border px-4 py-3 ${selectedCliente ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Cliente que se guardara en la venta</p>
+                                        {selectedCliente ? (
+                                            <>
+                                                <p className="mt-1 text-sm font-bold text-slate-900">
+                                                    {selectedCliente.nombre}
+                                                </p>
+                                                <p className="text-xs text-gray-600">
+                                                    {selectedCliente.cuenta_movil_email || selectedCliente.email || 'Sin correo'}
+                                                    {selectedCliente.historial_movil_habilitado ? ' · app movil' : ''}
+                                                    {selectedCliente.nit ? ` · NIT: ${selectedCliente.nit}` : ''}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p className="mt-1 text-sm font-medium text-amber-800">
+                                                No hay cliente seleccionado. Si registras asi, esta compra no aparecera en historial movil de ningun cliente.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <Button type="submit" loading={loading}>Registrar Venta</Button>
+                                        <Button
+                                            type="button"
+                                            onClick={() => setShowModal(false)}
+                                            className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
+                                        >
+                                            Cancelar
+                                        </Button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
+                    </div>
+                </div>
             )}
-        </div>
-    </div>
+            {mostrarPasarela && (
+    <PasarelaPagoModal
+        metodo={formData.metodo_pago}
+        monto={formData.monto_bs}
+        onConfirmar={() => {
+            setMostrarPasarela(false);
+            ejecutarRegistroVenta();
+        }}
+        onCancelar={() => {
+            ventaRequestIdRef.current = null;
+            setMostrarPasarela(false);
+        }}
+    />
 )}
+            {showTicketModal && selectedTicket && (
+                <TicketModal 
+                    ticket={selectedTicket} 
+                    onClose={() => {
+                        setShowTicketModal(false);
+                        setSelectedTicket(null);
+                    }} 
+                />
+            )}
+
         </div>
     );
 }
