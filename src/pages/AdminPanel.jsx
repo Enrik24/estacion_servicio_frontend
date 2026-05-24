@@ -23,18 +23,28 @@ function UsuariosModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [formData, setFormData] = useState({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' });
-
+  const [formData, setFormData] = useState({ nombre: '', email: '', rol: '', sucursal: '', is_active: true, password: '', confirmPassword: '' });
+  const [sucursales, setSucursales] = useState([]);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [exito, setExito] = useState('');
 
   // Load users and roles on mount
   useEffect(() => {
     loadUsers();
     loadRoles();
+    loadSucursales();
   }, []);
-
+  const loadSucursales = async () => {
+    try {
+      const response = await sucursalesService.getAll();
+      const data = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setSucursales(data);
+    } catch (err) {
+      console.error('Error loading sucursales:', err);
+    }
+  };
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -91,7 +101,20 @@ function UsuariosModule() {
       alert('La contraseña es obligatoria para nuevos usuarios');
       return;
     }
+    if (formData.sucursal && formData.rol) {
+      const rolSeleccionado = roles.find(r => r.id === parseInt(formData.rol));
+      const esGerente = rolSeleccionado?.nombre?.toLowerCase().includes('gerente');
 
+      if (esGerente) {
+        const sucursalSeleccionada = sucursales.find(s => s.id === parseInt(formData.sucursal));
+        if (sucursalSeleccionada?.gerente && sucursalSeleccionada.gerente.id !== editingUser?.id) {
+          const confirmar = confirm(
+            `La sucursal "${sucursalSeleccionada.nombre}" ya tiene asignado al gerente "${sucursalSeleccionada.gerente.nombre}". ¿Deseas reasignar igualmente?`
+          );
+          if (!confirmar) return;
+        }
+      }
+    }
     try {
       let userId;
       if (editingUser) {
@@ -116,9 +139,11 @@ function UsuariosModule() {
       }
 
       await loadUsers();
+      setExito('Usuario guardado correctamente');
+      setTimeout(() => setExito(''), 3000);
       setShowModal(false);
       setEditingUser(null);
-      setFormData({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' });
+      setFormData({ nombre: '', email: '', rol: '', sucursal: '', is_active: true, password: '', confirmPassword: '' });
     } catch (err) {
       alert('Error al guardar usuario: ' + (err.response?.data?.detail || err.message));
     }
@@ -139,9 +164,11 @@ function UsuariosModule() {
       nombre: user.nombre || '',
       email: user.email || '',
       rol: userRol,
+      sucursal: user.sucursal || '',
       is_active: user.is_active !== undefined ? user.is_active : true,
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+
     });
     setShowModal(true);
   };
@@ -161,8 +188,13 @@ function UsuariosModule() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Gestión de Usuarios</h2>
+        {exito && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-emerald-700 text-sm">
+            {exito}
+          </div>
+        )}
         <div className="mt-4">
-          <Button onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' }); setShowModal(true); }} fullWidth={false} size="small">Nuevo Usuario</Button>
+          <Button onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', rol: '', sucursal: '', is_active: true, password: '', confirmPassword: '' }); setShowModal(true); }} fullWidth={false} size="small">Nuevo Usuario</Button>
         </div>
       </div>
 
@@ -242,8 +274,8 @@ function UsuariosModule() {
                   key={page}
                   onClick={() => handlePageChange(page)}
                   className={`px-3 py-1 text-sm rounded ${currentPage === page
-                      ? 'bg-emerald-500 text-white'
-                      : 'border border-gray-300 hover:bg-gray-50'
+                    ? 'bg-emerald-500 text-white'
+                    : 'border border-gray-300 hover:bg-gray-50'
                     }`}
                 >
                   {page}
@@ -325,6 +357,23 @@ function UsuariosModule() {
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                  Sucursal asignada (opcional)
+                </label>
+                <select
+                  value={formData.sucursal}
+                  onChange={(e) => setFormData({ ...formData, sucursal: e.target.value })}
+                  className="block w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="">Sin sucursal asignada</option>
+                  {sucursales.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
                     </option>
                   ))}
                 </select>
@@ -507,8 +556,8 @@ function RolesModule() {
                 key={page}
                 onClick={() => handlePageChange(page)}
                 className={`px-3 py-1 text-sm rounded ${currentPage === page
-                    ? 'bg-emerald-500 text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
+                  ? 'bg-emerald-500 text-white'
+                  : 'border border-gray-300 hover:bg-gray-50'
                   }`}
               >
                 {page}
@@ -742,6 +791,11 @@ function SucursalesModule() {
   const [editando, setEditando] = useState(null);
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
+  const [tiposCombustible, setTiposCombustible] = useState([]);
+  const [showPreciosModal, setShowPreciosModal] = useState(false);
+  const [tiposEmpresa, setTiposEmpresa] = useState([]);
+  const [loadingPrecios, setLoadingPrecios] = useState(false);
+  const [tiposSeleccionados, setTiposSeleccionados] = useState([]);
   const [formData, setFormData] = useState({
     nombre: '',
     direccion: '',
@@ -756,8 +810,18 @@ function SucursalesModule() {
 
   useEffect(() => {
     cargarSucursales();
+    cargarTipos();
   }, []);
 
+  const cargarTipos = async () => {
+    try {
+      const res = await apiClient.get('/tipos-combustible/');
+      const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+      setTiposCombustible(data);
+    } catch (err) {
+      console.error('Error cargando tipos:', err);
+    }
+  };
   const cargarSucursales = async () => {
     setLoading(true);
     try {
@@ -776,11 +840,12 @@ function SucursalesModule() {
     e.preventDefault();
     setError(''); setExito('');
     try {
+      const payload = { ...formData, tipos_combustible: tiposSeleccionados };
       if (editando) {
-        await sucursalesService.actualizar(editando.id, formData);
+        await sucursalesService.actualizar(editando.id, payload);
         setExito('Sucursal actualizada correctamente');
       } else {
-        await sucursalesService.crear(formData);
+        await sucursalesService.crear(payload);
         setExito('Sucursal creada correctamente');
       }
       setShowModal(false);
@@ -794,6 +859,7 @@ function SucursalesModule() {
 
   const handleEditar = (sucursal) => {
     setEditando(sucursal);
+    setTiposSeleccionados(sucursal.tipos_combustible || []);
     setFormData({
       nombre: sucursal.nombre || '',
       direccion: sucursal.direccion || '',
@@ -818,8 +884,35 @@ function SucursalesModule() {
       setError('Error al eliminar sucursal');
     }
   };
-
+  const handleActualizarPrecios = async (e) => {
+    e.preventDefault();
+    setLoadingPrecios(true);
+    try {
+        await Promise.all(
+            tiposEmpresa.map(t =>
+                apiClient.patch(`/tipos-combustible/${t.id}/`, { precio_litro: t.precio_litro })
+            )
+        );
+        setExito('Precios actualizados correctamente');
+        setShowPreciosModal(false);
+    } catch {
+        setError('Error al actualizar precios');
+    } finally {
+        setLoadingPrecios(false);
+    }
+};
+const abrirModalPrecios = async () => {
+    try {
+        const res = await apiClient.get('/tipos-combustible/');
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setTiposEmpresa(data);
+        setShowPreciosModal(true);
+    } catch (err) {
+        setError('Error al cargar tipos de combustible');
+    }
+};
   const resetForm = () => {
+    setTiposSeleccionados([]);
     setFormData({
       nombre: '', direccion: '', telefono: '', nit: '',
       cantidad_islas: 1, tiene_gnv: false, estado: 'ACTIVA',
@@ -831,6 +924,15 @@ function SucursalesModule() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-2xl font-bold text-slate-900">Gestión de Sucursales</h2>
+
+      <Button
+    onClick={abrirModalPrecios}
+    fullWidth={false}
+    size="small"
+    className="!bg-emerald-600 hover:!bg-emerald-700"
+>
+    Actualizar Precios
+</Button>
         <Button onClick={() => { resetForm(); setEditando(null); setShowModal(true); }} fullWidth={false} size="small">
           Nueva Sucursal
         </Button>
@@ -853,6 +955,11 @@ function SucursalesModule() {
                 <div>
                   <h3 className="font-bold text-slate-900">{s.nombre}</h3>
                   <p className="text-xs text-gray-500 mt-0.5">{s.direccion}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Gerente: <span className="font-medium text-slate-600">
+                      {s.gerente ? s.gerente.nombre : 'Sin asignar'}
+                    </span>
+                  </p>
                 </div>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${s.estado === 'ACTIVA' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                   }`}>
@@ -897,7 +1004,7 @@ function SucursalesModule() {
           ))}
         </div>
       )}
-
+  
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -938,6 +1045,33 @@ function SucursalesModule() {
                     onSelect={(lat, lng) => setFormData({ ...formData, latitud: lat, longitud: lng })}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                    Tipos de combustible disponibles
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {tiposCombustible.map(tipo => (
+                      <div key={tipo.id} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id={`tipo-${tipo.id}`}
+                          checked={tiposSeleccionados.includes(tipo.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTiposSeleccionados([...tiposSeleccionados, tipo.id]);
+                            } else {
+                              setTiposSeleccionados(tiposSeleccionados.filter(id => id !== tipo.id));
+                            }
+                          }}
+                          className="h-4 w-4 text-emerald-500 rounded"
+                        />
+                        <label htmlFor={`tipo-${tipo.id}`} className="text-sm text-gray-700">
+                          {tipo.tipo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="sm:col-span-2 flex items-center gap-3">
                   <input type="checkbox" id="tiene_gnv" checked={formData.tiene_gnv} onChange={e => setFormData({ ...formData, tiene_gnv: e.target.checked })} className="h-4 w-4 text-emerald-500 rounded" />
                   <label htmlFor="tiene_gnv" className="text-sm text-gray-700">Esta sucursal tiene GNV</label>
@@ -950,448 +1084,485 @@ function SucursalesModule() {
             </form>
           </div>
         </div>
+        
+      )}
+      {showPreciosModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold mb-1">Actualizar Precios</h3>
+            <p className="text-xs text-gray-400 mb-4">Los precios se aplicarán a todas las sucursales de la empresa.</p>
+            <form onSubmit={handleActualizarPrecios} className="space-y-3">
+                {tiposEmpresa.map((tipo, index) => (
+                    <div key={tipo.id} className="flex items-center justify-between gap-3">
+                        <label className="text-sm text-gray-700 font-medium w-40">
+                            {tipo.tipo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </label>
+                        <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-400">Bs.</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={tipo.precio_litro}
+                                onChange={(e) => {
+                                    const nuevos = [...tiposEmpresa];
+                                    nuevos[index] = { ...nuevos[index], precio_litro: e.target.value };
+                                    setTiposEmpresa(nuevos);
+                                }}
+                                className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
+                            />
+                            <span className="text-xs text-gray-400">/Lt</span>
+                        </div>
+                    </div>
+                ))}
+                <div className="flex gap-3 pt-2">
+                    <Button type="submit" loading={loadingPrecios}>Guardar precios</Button>
+                    <Button type="button" onClick={() => setShowPreciosModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
+    </div>
+
+  );
+}
+function TurnosAdminModule() {
+  const [turnos, setTurnos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [horario, setHorario] = useState('');
+  const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
+  const [ventas, setVentas] = useState([]);
+  const [tabCombustible, setTabCombustible] = useState(null);
+  const [loadingVentas, setLoadingVentas] = useState(false);
+
+  useEffect(() => {
+    cargarTurnos();
+  }, [fecha, horario]);
+
+  const cargarTurnos = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await turnosService.getResumen(fecha, horario);
+      console.log('📤 Respuesta del backend:', response);
+      console.log('📤 response.data:', response.data);
+
+      let turnosData = [];
+
+      // Intentar extraer los datos de diferentes formatos posibles
+      if (Array.isArray(response.data)) {
+        turnosData = response.data;
+        console.log('✅ Datos es un array');
+      } else if (response.data && typeof response.data === 'object') {
+        // Si es un objeto, buscar la propiedad que contiene el array
+        if (response.data.results && Array.isArray(response.data.results)) {
+          turnosData = response.data.results;
+          console.log('✅ Datos encontrados en response.data.results');
+        } else if (response.data.turnos && Array.isArray(response.data.turnos)) {
+          turnosData = response.data.turnos;
+          console.log('✅ Datos encontrados en response.data.turnos');
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          turnosData = response.data.data;
+          console.log('✅ Datos encontrados en response.data.data');
+        } else {
+          console.warn('⚠️ No se encontró array en response.data:', Object.keys(response.data));
+          turnosData = [];
+        }
+      }
+
+      console.log(`✅ Total de turnos cargados: ${turnosData.length}`, turnosData);
+      setTurnos(turnosData);
+    } catch (err) {
+      console.error('❌ Error cargando turnos:', err);
+      console.error('📥 Detalle del error:', err.response?.data);
+      setError(err.response?.data?.detail || err.message || 'Error al cargar turnos');
+      setTurnos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verVentas = async (turno) => {
+    setTurnoSeleccionado(turno);
+    setLoadingVentas(true);
+    try {
+      const response = await ventasService.getAll();
+      const data = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setVentas(data.filter(v => v.turno === turno.id));
+    } catch (err) {
+      console.error('Error cargando ventas:', err);
+      setVentas([]);
+    } finally {
+      setLoadingVentas(false);
+    }
+  };
+
+  const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
+  const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
+
+  const litrosPorTipo = turnos.reduce((acc, t) => {
+    if (t.litros_por_tipo && typeof t.litros_por_tipo === 'object') {
+      Object.entries(t.litros_por_tipo).forEach(([tipo, datos]) => {
+        if (!acc[tipo]) acc[tipo] = { cantidad: 0, unidad: 'Lt' };
+        acc[tipo].cantidad += datos.cantidad || 0;
+      });
+    }
+    return acc;
+  }, {});
+
+  const tiposCombustible = Object.keys(litrosPorTipo);
+  const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
+    ? tabCombustible
+    : tiposCombustible[0] || null;
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Resumen de Turnos</h2>
+
+      {/* Filtros */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Fecha</label>
+            <input
+              type="date"
+              value={fecha}
+              onChange={e => setFecha(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Horario</label>
+            <select
+              value={horario}
+              onChange={e => setHorario(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none"
+            >
+              <option value="">Todos los turnos</option>
+              <option value="MANANA">Mañana 06:00 - 14:00</option>
+              <option value="TARDE">Tarde 14:00 - 22:00</option>
+              <option value="NOCHE">Noche 22:00 - 06:00</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={cargarTurnos}
+              className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 text-sm hover:bg-slate-700 transition"
+            >
+              Actualizar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mostrar error si existe */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+          ❌ {error}
+        </div>
+      )}
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Turnos</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.length}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Ventas totales</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">Bs. {totalGeneral}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold mb-2">
+            Litros por combustible
+          </p>
+
+          {tiposCombustible.length === 0 ? (
+            <p className="text-2xl font-bold text-slate-900 mt-1">0 Lt</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-1 mb-3">
+                {tiposCombustible.map((tipo) => (
+                  <button
+                    key={tipo}
+                    onClick={() => setTabCombustible(tipo)}
+                    className={`text-xs px-2 py-1 rounded-full border transition ${tabActivo === tipo
+                      ? 'bg-blue-100 text-blue-700 border-blue-300'
+                      : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+                      }`}
+                  >
+                    {tipo.replace('Gasolina ', '').replace(' Oil', '')}
+                  </button>
+                ))}
+              </div>
+
+              {tabActivo && (
+                <p className="text-2xl font-bold text-slate-900">
+                  {litrosPorTipo[tabActivo].cantidad.toFixed(3)}{' '}
+                  {litrosPorTipo[tabActivo].unidad}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Transacciones</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + (t.cantidad_ventas || 0), 0)}</p>
+        </div>
+      </div>
+
+      {/* Lista de turnos */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <h3 className="font-semibold text-slate-900">Turnos del día</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Operador</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Isla</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Horario</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Apertura</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Ventas</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalle</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
+                      Cargando turnos...
+                    </div>
+                  </td>
+                </tr>
+              ) : turnos.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No hay turnos registrados para esta fecha</td>
+                </tr>
+              ) : (
+                turnos.map(t => (
+                  <tr key={t.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-slate-800 font-medium">{t.operador || t.operador_nombre || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-600">Isla {t.isla || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-600">{t.horario || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">{t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleTimeString('es-BO') : 'N/A'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${t.estado === 'ABIERTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {t.estado || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas || 0}</td>
+                    <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {(t.total_ventas || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => verVentas(t)}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Ver ventas
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Detalle de ventas del turno seleccionado */}
+      {turnoSeleccionado && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-900">
+              Ventas — {turnoSeleccionado.operador || turnoSeleccionado.operador_nombre} / Isla {turnoSeleccionado.isla} / {turnoSeleccionado.horario}
+            </h3>
+            <button onClick={() => setTurnoSeleccionado(null)} className="text-xs text-gray-400 hover:text-gray-600">Cerrar</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Comprobante</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Lado</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Combustible</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Pago</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Hora</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {loadingVentas ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Cargando...</td>
+                  </tr>
+                ) : ventas.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">No hay ventas en este turno</td>
+                  </tr>
+                ) : (
+                  ventas.map(v => (
+                    <tr key={v.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{v.numero_comprobante}</td>
+                      <td className="px-4 py-3 text-gray-600">Lado {v.lado_nombre}</td>
+                      <td className="px-4 py-3 text-gray-800">{v.tipo_combustible_nombre}</td>
+                      <td className="px-4 py-3 text-gray-800">{v.litros} Lt</td>
+                      <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {v.total}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{v.metodo_pago}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{new Date(v.fecha_hora).toLocaleTimeString('es-BO')}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-function TurnosAdminModule() {
-    const [turnos, setTurnos] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-    const [horario, setHorario] = useState('');
-    const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
-    const [ventas, setVentas] = useState([]);
-    const [tabCombustible, setTabCombustible] = useState(null);
-    const [loadingVentas, setLoadingVentas] = useState(false);
-
-    useEffect(() => {
-        cargarTurnos();
-    }, [fecha, horario]);
-
-    const cargarTurnos = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await turnosService.getResumen(fecha, horario);
-            console.log('📤 Respuesta del backend:', response);
-            console.log('📤 response.data:', response.data);
-            
-            let turnosData = [];
-            
-            // Intentar extraer los datos de diferentes formatos posibles
-            if (Array.isArray(response.data)) {
-                turnosData = response.data;
-                console.log('✅ Datos es un array');
-            } else if (response.data && typeof response.data === 'object') {
-                // Si es un objeto, buscar la propiedad que contiene el array
-                if (response.data.results && Array.isArray(response.data.results)) {
-                    turnosData = response.data.results;
-                    console.log('✅ Datos encontrados en response.data.results');
-                } else if (response.data.turnos && Array.isArray(response.data.turnos)) {
-                    turnosData = response.data.turnos;
-                    console.log('✅ Datos encontrados en response.data.turnos');
-                } else if (response.data.data && Array.isArray(response.data.data)) {
-                    turnosData = response.data.data;
-                    console.log('✅ Datos encontrados en response.data.data');
-                } else {
-                    console.warn('⚠️ No se encontró array en response.data:', Object.keys(response.data));
-                    turnosData = [];
-                }
-            }
-            
-            console.log(`✅ Total de turnos cargados: ${turnosData.length}`, turnosData);
-            setTurnos(turnosData);
-        } catch (err) {
-            console.error('❌ Error cargando turnos:', err);
-            console.error('📥 Detalle del error:', err.response?.data);
-            setError(err.response?.data?.detail || err.message || 'Error al cargar turnos');
-            setTurnos([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const verVentas = async (turno) => {
-        setTurnoSeleccionado(turno);
-        setLoadingVentas(true);
-        try {
-            const response = await ventasService.getAll();
-            const data = Array.isArray(response.data) ? response.data : response.data.results || [];
-            setVentas(data.filter(v => v.turno === turno.id));
-        } catch (err) {
-            console.error('Error cargando ventas:', err);
-            setVentas([]);
-        } finally {
-            setLoadingVentas(false);
-        }
-    };
-
-    const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
-    const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
-
-const litrosPorTipo = turnos.reduce((acc, t) => {
-    if (t.litros_por_tipo && typeof t.litros_por_tipo === 'object') {
-        Object.entries(t.litros_por_tipo).forEach(([tipo, datos]) => {
-            if (!acc[tipo]) acc[tipo] = { cantidad: 0, unidad: 'Lt' };
-            acc[tipo].cantidad += datos.cantidad || 0;
-        });
-    }
-    return acc;
-}, {});
-
-const tiposCombustible = Object.keys(litrosPorTipo);
-const tabActivo = tabCombustible && litrosPorTipo[tabCombustible]
-    ? tabCombustible
-    : tiposCombustible[0] || null;
-    return (
-        <div className="space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Resumen de Turnos</h2>
-
-            {/* Filtros */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Fecha</label>
-                        <input
-                            type="date"
-                            value={fecha}
-                            onChange={e => setFecha(e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">Horario</label>
-                        <select
-                            value={horario}
-                            onChange={e => setHorario(e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-slate-900 outline-none"
-                        >
-                            <option value="">Todos los turnos</option>
-                            <option value="MANANA">Mañana 06:00 - 14:00</option>
-                            <option value="TARDE">Tarde 14:00 - 22:00</option>
-                            <option value="NOCHE">Noche 22:00 - 06:00</option>
-                        </select>
-                    </div>
-                    <div className="flex items-end">
-                        <button
-                            onClick={cargarTurnos}
-                            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 text-sm hover:bg-slate-700 transition"
-                        >
-                            Actualizar
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Mostrar error si existe */}
-            {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
-                    ❌ {error}
-                </div>
-            )}
-
-            {/* KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Turnos</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.length}</p>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Ventas totales</p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-1">Bs. {totalGeneral}</p>
-                </div>
-               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-  <p className="text-xs text-gray-500 uppercase font-semibold mb-2">
-    Litros por combustible
-  </p>
-
-  {tiposCombustible.length === 0 ? (
-    <p className="text-2xl font-bold text-slate-900 mt-1">0 Lt</p>
-  ) : (
-    <>
-      <div className="flex flex-wrap gap-1 mb-3">
-        {tiposCombustible.map((tipo) => (
-          <button
-            key={tipo}
-            onClick={() => setTabCombustible(tipo)}
-            className={`text-xs px-2 py-1 rounded-full border transition ${
-              tabActivo === tipo
-                ? 'bg-blue-100 text-blue-700 border-blue-300'
-                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
-            }`}
-          >
-            {tipo.replace('Gasolina ', '').replace(' Oil', '')}
-          </button>
-        ))}
-      </div>
-
-      {tabActivo && (
-        <p className="text-2xl font-bold text-slate-900">
-          {litrosPorTipo[tabActivo].cantidad.toFixed(3)}{' '}
-          {litrosPorTipo[tabActivo].unidad}
-        </p>
-      )}
-    </>
-  )}
-</div>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                    <p className="text-xs text-gray-500 uppercase font-semibold">Transacciones</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + (t.cantidad_ventas || 0), 0)}</p>
-                </div>
-            </div>
-
-            {/* Lista de turnos */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-                    <h3 className="font-semibold text-slate-900">Turnos del día</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Operador</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Isla</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Horario</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Apertura</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Ventas</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalle</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
-                                            Cargando turnos...
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : turnos.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No hay turnos registrados para esta fecha</td>
-                                </tr>
-                            ) : (
-                                turnos.map(t => (
-                                    <tr key={t.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-slate-800 font-medium">{t.operador || t.operador_nombre || 'N/A'}</td>
-                                        <td className="px-4 py-3 text-gray-600">Isla {t.isla || 'N/A'}</td>
-                                        <td className="px-4 py-3 text-gray-600">{t.horario || 'N/A'}</td>
-                                        <td className="px-4 py-3 text-gray-600 text-xs">{t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleTimeString('es-BO') : 'N/A'}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${t.estado === 'ABIERTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {t.estado || 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas || 0}</td>
-                                        <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {(t.total_ventas || 0).toFixed(2)}</td>
-                                        <td className="px-4 py-3">
-                                            <button
-                                                onClick={() => verVentas(t)}
-                                                className="text-xs text-blue-600 hover:text-blue-800"
-                                            >
-                                                Ver ventas
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Detalle de ventas del turno seleccionado */}
-            {turnoSeleccionado && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                    <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                        <h3 className="font-semibold text-slate-900">
-                            Ventas — {turnoSeleccionado.operador || turnoSeleccionado.operador_nombre} / Isla {turnoSeleccionado.isla} / {turnoSeleccionado.horario}
-                        </h3>
-                        <button onClick={() => setTurnoSeleccionado(null)} className="text-xs text-gray-400 hover:text-gray-600">Cerrar</button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Comprobante</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Lado</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Combustible</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Pago</th>
-                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Hora</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {loadingVentas ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Cargando...</td>
-                                    </tr>
-                                ) : ventas.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">No hay ventas en este turno</td>
-                                    </tr>
-                                ) : (
-                                    ventas.map(v => (
-                                        <tr key={v.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 font-mono text-xs text-gray-600">{v.numero_comprobante}</td>
-                                            <td className="px-4 py-3 text-gray-600">Lado {v.lado_nombre}</td>
-                                            <td className="px-4 py-3 text-gray-800">{v.tipo_combustible_nombre}</td>
-                                            <td className="px-4 py-3 text-gray-800">{v.litros} Lt</td>
-                                            <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {v.total}</td>
-                                            <td className="px-4 py-3">
-                                                <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{v.metodo_pago}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-xs text-gray-500">{new Date(v.fecha_hora).toLocaleTimeString('es-BO')}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
 const backupService = {
-    descargar: () => apiClient.get('/backup/descargar/', { 
-        responseType: 'blob',
-        timeout: 60000
-    }),
-    restaurar: (archivo) => {
-        const formData = new FormData();
-        formData.append('archivo', archivo);
-        return apiClient.post('/backup/restaurar/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    }
+  descargar: () => apiClient.get('/backup/descargar/', {
+    responseType: 'blob',
+    timeout: 60000
+  }),
+  restaurar: (archivo) => {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+    return apiClient.post('/backup/restaurar/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
 };
 function BackupModule() {
-    const [loading, setLoading] = useState(false);
-    const [loadingRestore, setLoadingRestore] = useState(false);
-    const [error, setError] = useState(null);
-    const [exito, setExito] = useState(null);
-    const [archivoRestore, setArchivoRestore] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingRestore, setLoadingRestore] = useState(false);
+  const [error, setError] = useState(null);
+  const [exito, setExito] = useState(null);
+  const [archivoRestore, setArchivoRestore] = useState(null);
 
-const handleDescargar = async () => {
+  const handleDescargar = async () => {
     setLoading(true);
     setError(null);
     try {
-        const response = await backupService.descargar();
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        link.setAttribute('download', `backup_${fecha}.sql`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        setExito('Backup descargado correctamente');
+      const response = await backupService.descargar();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      link.setAttribute('download', `backup_${fecha}.sql`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setExito('Backup descargado correctamente');
     } catch (err) {
-        setError('Error al generar el backup');
+      setError('Error al generar el backup');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
-    const handleRestaurar = async () => {
-        if (!archivoRestore) {
-            setError('Selecciona un archivo .sql para restaurar');
-            return;
-        }
-        if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales de la base de datos.')) return;
-        setLoadingRestore(true);
-        setError(null);
-        try {
-            await backupService.restaurar(archivoRestore);
-            setExito('Base de datos restaurada correctamente');
-            setArchivoRestore(null);
-        } catch (err) {
-            setError(err.response?.data?.error || 'Error al restaurar el backup');
-        } finally {
-            setLoadingRestore(false);
-        }
-    };
+  const handleRestaurar = async () => {
+    if (!archivoRestore) {
+      setError('Selecciona un archivo .sql para restaurar');
+      return;
+    }
+    if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales de la base de datos.')) return;
+    setLoadingRestore(true);
+    setError(null);
+    try {
+      await backupService.restaurar(archivoRestore);
+      setExito('Base de datos restaurada correctamente');
+      setArchivoRestore(null);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al restaurar el backup');
+    } finally {
+      setLoadingRestore(false);
+    }
+  };
 
-    return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
-                <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
-            </div>
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
+        <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
+      </div>
 
-            {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-                    <p className="text-red-700 text-sm">{error}</p>
-                </div>
-            )}
-            {exito && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
-                    <p className="text-emerald-700 text-sm">{exito}</p>
-                </div>
-            )}
-
-            {/* Tarjeta Backup */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-                <div>
-                    <h3 className="font-semibold text-slate-900 text-lg">Generar Backup</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Descarga una copia completa de la base de datos en formato <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span>. Guarda este archivo en un lugar seguro.
-                    </p>
-                </div>
-                <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
-                    Descargar Backup
-                </Button>
-            </div>
-
-            {/* Tarjeta Restore */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-                <div>
-                    <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> generado previamente. <span className="text-red-600 font-medium">Esta acción reemplazará todos los datos actuales.</span>
-                    </p>
-                </div>
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-                            Seleccionar archivo .sql
-                        </label>
-                        <input
-                            type="file"
-                            accept=".sql"
-                            onChange={(e) => {
-                                setArchivoRestore(e.target.files[0]);
-                                setError(null);
-                                setExito(null);
-                            }}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
-                        />
-                    </div>
-                    {archivoRestore && (
-                        <p className="text-xs text-gray-500">
-                            Archivo seleccionado: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
-                        </p>
-                    )}
-                    <Button
-                        onClick={handleRestaurar}
-                        loading={loadingRestore}
-                        fullWidth={false}
-                        size="small"
-                        className="!bg-red-600 hover:!bg-red-700"
-                    >
-                        Restaurar Base de Datos
-                    </Button>
-                </div>
-            </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <p className="text-red-700 text-sm">{error}</p>
         </div>
-    );
+      )}
+      {exito && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+          <p className="text-emerald-700 text-sm">{exito}</p>
+        </div>
+      )}
+
+      {/* Tarjeta Backup */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div>
+          <h3 className="font-semibold text-slate-900 text-lg">Generar Backup</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Descarga una copia completa de la base de datos en formato <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span>. Guarda este archivo en un lugar seguro.
+          </p>
+        </div>
+        <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
+          Descargar Backup
+        </Button>
+      </div>
+
+      {/* Tarjeta Restore */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div>
+          <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> generado previamente. <span className="text-red-600 font-medium">Esta acción reemplazará todos los datos actuales.</span>
+          </p>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              Seleccionar archivo .sql
+            </label>
+            <input
+              type="file"
+              accept=".sql"
+              onChange={(e) => {
+                setArchivoRestore(e.target.files[0]);
+                setError(null);
+                setExito(null);
+              }}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
+            />
+          </div>
+          {archivoRestore && (
+            <p className="text-xs text-gray-500">
+              Archivo seleccionado: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
+            </p>
+          )}
+          <Button
+            onClick={handleRestaurar}
+            loading={loadingRestore}
+            fullWidth={false}
+            size="small"
+            className="!bg-red-600 hover:!bg-red-700"
+          >
+            Restaurar Base de Datos
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 function AdminPanel() {
   return (
@@ -1418,5 +1589,5 @@ function AdminPanel() {
   );
 }
 
-export { BitacoraModule };
+export { RolesModule, PermisosModule, BitacoraModule, TurnosAdminModule };
 export default AdminPanel;

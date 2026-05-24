@@ -44,7 +44,7 @@ useEffect(() => {
 }, []);
   const location = useLocation();
   
-  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/gerente');
   const isVentasRoute = location.pathname.startsWith('/ventas');
   const isSucursalesRoute = location.pathname.startsWith('/admin/sucursales');
   const isReportesRoute = location.pathname.startsWith('/reportes');
@@ -62,7 +62,14 @@ useEffect(() => {
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
     { path: '/admin/backup', label: 'Backup y Restauración', icon: Database },
   ];
-
+  const gerenteSubModules = [
+    { path: '/gerente/usuarios', label: 'Usuarios', icon: Users },
+    { path: '/gerente/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
+    { path: '/gerente/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
+    { path: '/gerente/roles', label: 'Roles', icon: UserCog },
+    { path: '/gerente/permisos', label: 'Permisos', icon: Key },
+    { path: '/gerente/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
+];
  const ventasSubModules = [
     { path: '/ventas/turno', label: 'Turno', icon: Clock },
     { path: '/ventas/registrar', label: 'Registrar venta', icon: ShoppingCart },
@@ -79,7 +86,7 @@ useEffect(() => {
         {!collapsed && (
           <h1 className="text-lg font-bold">
             <span className="text-white">Surtidor</span>
-            <span className="text-emerald-400">Bo</span>
+            
           </h1>
         )}
         <button 
@@ -210,7 +217,7 @@ useEffect(() => {
                 
                 {/* Enlace original a Turnos */}
                 <NavLink
-  to="/admin/turnos"
+    to={userRole === 'gerente' ? '/gerente/turnos' : '/admin/turnos'}
   className={({ isActive }) =>
     `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
       isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
@@ -223,7 +230,7 @@ useEffect(() => {
 
                 {/* NUEVO: Enlace a Consolidación (CU8) */}
                 <NavLink
-                  to="/admin/consolidacion"
+                  to={userRole === 'gerente' ? '/gerente/consolidacion' : '/admin/consolidacion'}
                   className={({ isActive }) =>
                     `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
                       isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
@@ -237,7 +244,7 @@ useEffect(() => {
             ) : (
               <div className="space-y-2">
                 <NavLink
-                  to="/admin/turnos"
+                  to={userRole === 'gerente' ? '/gerente/turnos' : '/admin/turnos'}
                   className={({ isActive }) =>
                     `flex items-center justify-center px-3 py-2 rounded-lg transition ${
                       isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
@@ -247,7 +254,7 @@ useEffect(() => {
                   <ShoppingCart className="w-5 h-5 flex-shrink-0" />
                 </NavLink>
                 <NavLink
-                  to="/admin/consolidacion"
+                  to={userRole === 'gerente' ? '/gerente/consolidacion' : '/admin/consolidacion'}
                   className={({ isActive }) =>
                     `flex items-center justify-center px-3 py-2 rounded-lg transition ${
                       isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
@@ -311,57 +318,55 @@ useEffect(() => {
         )}
     </div>
 )}
-        {/* Administración y Seguridad */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
-        <div className="pt-4 mt-4 border-t border-slate-800">
-          {!collapsed ? (
+    <div className="pt-4 mt-4 border-t border-slate-800">
+        {!collapsed ? (
             <>
-              <button
-                onClick={() => setAdminExpanded(!adminExpanded)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
-                  isAdminRoute ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Shield className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-sm font-medium">Administración y Seguridad</span>
-                </div>
-                {adminExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              
-              {adminExpanded && (
-                <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
-                  {adminSubModules.map((item) => (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      className={({ isActive }) => 
-                        `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                          isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                        }`
-                      }
-                    >
-                      <item.icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-sm">{item.label}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              )}
+                <button
+                    onClick={() => setAdminExpanded(!adminExpanded)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
+                        isAdminRoute ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                >
+                    <div className="flex items-center space-x-3">
+                        <Shield className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium">Administración y Seguridad</span>
+                    </div>
+                    {adminExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {adminExpanded && (
+                    <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+                        {(userRole === 'gerente' ? gerenteSubModules : adminSubModules).map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                                    }`
+                                }
+                            >
+                                <item.icon className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-sm">{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                )}
             </>
-          ) : (
+        ) : (
             <NavLink
-              to="/admin/usuarios"
-              className={({ isActive }) => 
-                `flex items-center justify-center px-3 py-2 rounded-lg transition ${
-                  isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
-                }`
-              }
+                to={userRole === 'gerente' ? '/gerente/usuarios' : '/admin/usuarios'}
+                className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                }
             >
-              <Shield className="w-5 h-5 flex-shrink-0" />
+                <Shield className="w-5 h-5 flex-shrink-0" />
             </NavLink>
         )}
-        </div>
-        )}
+    </div>
+)}
       </nav>
       
       {!collapsed && (

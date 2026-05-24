@@ -12,6 +12,8 @@ import BitacoraPage from './pages/BitacoraPage';
 import ReportesPage from './pages/ReportesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsolidacionCaja from './pages/ConsolidacionCaja';
+import SuperAdminPanel from './pages/SuperAdminPanel';
+import GerentePanel from './pages/GerentePanel';
 
 function App() {
   return (
@@ -23,12 +25,24 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/admin/*" element={
-          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+          <ProtectedRoute rolesPermitidos={['Administrador']}>
             <AdminPanel />
           </ProtectedRoute>
         } />
         <Route path="/admin/consolidacion" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <ConsolidacionCaja />
+          </ProtectedRoute>
+        } />
+        // Agrega ruta de gerente
+        <Route path="/gerente/*" element={
+          <ProtectedRoute rolesPermitidos={['Gerente']}>
+            <GerentePanel />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/gerente/consolidacion" element={
+          <ProtectedRoute rolesPermitidos={['Gerente']}>
             <ConsolidacionCaja />
           </ProtectedRoute>
         } />
@@ -42,9 +56,15 @@ function App() {
             <BitacoraPage />
           </ProtectedRoute>
         } />
+
         <Route path="/reportes" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente', 'Auditor']}>
             <ReportesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/superadmin" element={
+          <ProtectedRoute soloSuperAdmin={true}>
+            <SuperAdminPanel />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -96,10 +96,17 @@ function Header({
             className="flex items-center cursor-pointer"
             onClick={() => navigate('/')}
           >
-            <h1 className="text-2xl font-bold">
-              <span className={variant === 'dark' || scrolled || (transparent && !scrolled) ? 'text-white' : 'text-slate-900'}>Surtidor</span>
-              <span className="text-emerald-500">Bolivia</span>
-            </h1>
+            {(() => {
+    const userStr = localStorage.getItem('user');
+    const userData = userStr ? JSON.parse(userStr) : null;
+    const nombreMostrar = userData?.sucursal_nombre || userData?.empresa_nombre || 'Bolivia';
+    const textColor = variant === 'dark' || scrolled || (transparent && !scrolled) ? 'text-white' : 'text-slate-900';
+    return (
+        <h1 className="text-2xl font-bold">
+            <span className="text-emerald-500">{nombreMostrar}</span>
+        </h1>
+    );
+})()}
           </div>
           
           {showNav && (
@@ -184,9 +191,9 @@ function Header({
     </button>
 
     {/* Solo mostrar Panel Admin si el usuario es Administrador o Gerente */}
-    {['administrador', 'gerente'].includes(userRole.toLowerCase()) && (
+  {['administrador', 'gerente'].includes(userRole.toLowerCase()) && (
     <button
-        onClick={() => navigate('/admin')}
+        onClick={() => navigate(userRole.toLowerCase() === 'gerente' ? '/gerente' : '/admin')}
         className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
     >
         <Settings className="w-4 h-4 text-gray-600" />
