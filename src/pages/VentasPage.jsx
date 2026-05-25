@@ -8,7 +8,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import PasarelaPagoModal from '../components/PasarelaPagoModal';
 import { turnosService, islasService, ladosService, tiposCombustibleService, clientesService, ventasService, vehiculosService } from '../services/ventasService';
-
+import apiClient from '../services/api';
 function TurnoModule() {
     const [turno, setTurno] = useState(null);
     const [islas, setIslas] = useState([]);
@@ -18,23 +18,17 @@ function TurnoModule() {
     const [showCerrarModal, setShowCerrarModal] = useState(false);
     const [abrirDatos, setAbrirDatos] = useState({ isla: '', horario: '' });
     const [cierreDatos, setCierreDatos] = useState({ monto_final: '', observaciones: '' });
+    const [showReporteModal, setShowReporteModal] = useState(false);
+    const [reporteData, setReporteData] = useState({ lado_id: '', descripcion: '' });
+    const [loadingReporte, setLoadingReporte] = useState(false);
+    const [exitoReporte, setExitoReporte] = useState(null);
 
     useEffect(() => {
         cargarTurno();
         cargarIslas();
     }, []);
 
-    const cargarTurno = async () => {
-        setLoading(true);
-        try {
-            const response = await turnosService.getMiTurno();
-            setTurno(response.data.turno || response.data);
-        } catch (err) {
-            console.error('Error cargando turno:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+
 
     const cargarIslas = async () => {
         try {
@@ -65,6 +59,51 @@ function TurnoModule() {
             setLoading(false);
         }
     };
+    const handleReportarProblema = async (e) => {
+        e.preventDefault();
+        setLoadingReporte(true);
+        try {
+            await apiClient.post('/monitoreo/surtidores/cambiar_estado/', {
+                lado_id: parseInt(reporteData.lado_id),
+                estado: 'FALLA',
+                descripcion: reporteData.descripcion,
+            });
+            setExitoReporte('Problema reportado correctamente. Se notificará al gerente.');
+            setShowReporteModal(false);
+            setReporteData({ lado_id: '', descripcion: '' });
+            setTimeout(() => setExitoReporte(null), 4000);
+        } catch {
+            setError('Error al reportar el problema');
+        } finally {
+            setLoadingReporte(false);
+        }
+    };
+    const [ladosTurno, setLadosTurno] = useState([]);
+
+const cargarLadosTurno = async (islaId) => {
+    try {
+        const res = await ladosService.getPorIsla(islaId);
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setLadosTurno(data);
+    } catch {
+        console.error('Error cargando lados');
+    }
+};
+   const cargarTurno = async () => {
+    setLoading(true);
+    try {
+        const response = await turnosService.getMiTurno();
+        const turnoData = response.data.turno || response.data;
+        setTurno(turnoData);
+        if (turnoData?.isla) {
+            await cargarLadosTurno(turnoData.isla);
+        }
+    } catch (err) {
+        console.error('Error cargando turno:', err);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleCerrarTurno = async (e) => {
         e.preventDefault();
@@ -92,7 +131,11 @@ function TurnoModule() {
                     <p className="text-red-700 text-sm">{error}</p>
                 </div>
             )}
-
+            {exitoReporte && (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+        <p className="text-emerald-700 text-sm">{exitoReporte}</p>
+    </div>
+)}
             {turno && turno.id ? (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -126,15 +169,25 @@ function TurnoModule() {
                             <p className="text-slate-900 font-medium mt-1 text-sm">{turno.horario_display}</p>
                         </div>
                     </div>
-
-                    <Button
-                        onClick={() => setShowCerrarModal(true)}
-                        fullWidth={false}
-                        size="small"
-                        className="!bg-red-500 hover:!bg-red-600"
-                    >
-                        Cerrar Turno
-                    </Button>
+                    
+                    <div className="flex gap-3">
+    <Button
+        onClick={() => setShowReporteModal(true)}
+        fullWidth={false}
+        size="small"
+        className="!bg-amber-500 hover:!bg-amber-600"
+    >
+        Reportar Problema
+    </Button>
+    <Button
+        onClick={() => setShowCerrarModal(true)}
+        fullWidth={false}
+        size="small"
+        className="!bg-red-500 hover:!bg-red-600"
+    >
+        Cerrar Turno
+    </Button>
+</div>
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center space-y-4">
@@ -196,7 +249,55 @@ function TurnoModule() {
                     </div>
                 </div>
             )}
-
+{showReporteModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold mb-1 text-red-600">⚠️ Reportar Problema</h3>
+            <p className="text-xs text-gray-400 mb-4">El gerente será notificado del problema reportado.</p>
+            <form onSubmit={handleReportarProblema} className="space-y-4">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                        Lado afectado
+                    </label>
+                    <select
+                        value={reporteData.lado_id}
+                        onChange={e => setReporteData({ ...reporteData, lado_id: e.target.value })}
+                        className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        required
+                    >
+                        <option value="">Selecciona el lado</option>
+{ladosTurno.map(lado => (
+    <option key={lado.id} value={lado.id}>
+        Isla {turno.isla_numero} - Lado {lado.lado}
+    </option>
+))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                        Descripción del problema
+                    </label>
+                    <textarea
+                        value={reporteData.descripcion}
+                        onChange={e => setReporteData({ ...reporteData, descripcion: e.target.value })}
+                        className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                        rows={3}
+                        placeholder="Describe el problema..."
+                        required
+                    />
+                </div>
+                <div className="flex gap-3 pt-2">
+                    <Button type="submit" loading={loadingReporte} className="!bg-red-500 hover:!bg-red-600">
+                        Reportar
+                    </Button>
+                    <Button type="button" onClick={() => setShowReporteModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">
+                        Cancelar
+                    </Button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
             {showCerrarModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
@@ -228,7 +329,9 @@ function TurnoModule() {
                     </div>
                 </div>
             )}
+            
         </div>
+        
     );
 }
 

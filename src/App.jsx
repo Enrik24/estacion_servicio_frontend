@@ -14,6 +14,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ConsolidacionCaja from './pages/ConsolidacionCaja';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 import GerentePanel from './pages/GerentePanel';
+import MonitoreoPage from './pages/MonitoreoPage';
+import InventarioPage from './pages/InventarioPage';
 
 function App() {
   return (
@@ -67,6 +69,16 @@ function App() {
             <SuperAdminPanel />
           </ProtectedRoute>
         } />
+        <Route path="/monitoreo" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <MonitoreoPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/inventario/tanques" element={
+    <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+        <InventarioPage />
+    </ProtectedRoute>
+} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

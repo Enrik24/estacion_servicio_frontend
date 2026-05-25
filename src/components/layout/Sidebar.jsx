@@ -20,6 +20,8 @@ import {
   Wallet,
   Database,
   BarChart3,
+  Activity,
+  Droplets,
   FileText
 } from 'lucide-react';
 function Sidebar() {
@@ -28,6 +30,8 @@ function Sidebar() {
   const [ventasExpanded, setVentasExpanded] = useState(true);
   const [sucursalesExpanded, setSucursalesExpanded] = useState(true);
   const [reportingExpanded, setReportingExpanded] = useState(true);
+  const [monitoreoExpanded, setMonitoreoExpanded] = useState(true);
+  const [combustibleExpanded, setCombustibleExpanded] = useState(true); 
   const [userRole, setUserRole] = useState('');
 
 useEffect(() => {
@@ -69,6 +73,7 @@ useEffect(() => {
     { path: '/gerente/roles', label: 'Roles', icon: UserCog },
     { path: '/gerente/permisos', label: 'Permisos', icon: Key },
     { path: '/gerente/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
+    { path: '/monitoreo', label: 'Monitoreo Surtidores', icon: Activity },
 ];
  const ventasSubModules = [
     { path: '/ventas/turno', label: 'Turno', icon: Clock },
@@ -77,6 +82,13 @@ useEffect(() => {
   const sucursalesSubModules = [
       { path: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
   ];
+  const monitoreoSubModules = [
+    { path: '/monitoreo', label: 'Surtidores', icon: Activity },
+];
+
+const combustibleSubModules = [
+    { path: '/inventario/tanques', label: 'Niveles de Tanques', icon: Fuel },
+];
   const reportingSubModules = [
       { path: '/reportes', label: 'Reportes', icon: FileText },
   ];
@@ -267,6 +279,107 @@ useEffect(() => {
             )}
           </div>
         )}
+        {/* Monitoreo y Control */}
+{['administrador', 'gerente'].includes(userRole) && (
+    <div className="pt-4 mt-4 border-t border-slate-800">
+        {!collapsed ? (
+            <>
+                <button
+                    onClick={() => setMonitoreoExpanded(!monitoreoExpanded)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
+                        location.pathname.startsWith('/monitoreo') ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                >
+                    <div className="flex items-center space-x-3">
+                        <Activity className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium">Monitoreo y Control</span>
+                    </div>
+                    {monitoreoExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {monitoreoExpanded && (
+                    <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+                        {monitoreoSubModules.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                                    }`
+                                }
+                            >
+                                <item.icon className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-sm">{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                )}
+            </>
+        ) : (
+            <NavLink
+                to="/monitoreo"
+                className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                }
+            >
+                <Activity className="w-5 h-5 flex-shrink-0" />
+            </NavLink>
+        )}
+    </div>
+)}
+
+{/* Control de Combustible */}
+{['administrador', 'gerente'].includes(userRole) && (
+    <div className="pt-4 mt-4 border-t border-slate-800">
+        {!collapsed ? (
+            <>
+                <button
+                    onClick={() => setCombustibleExpanded(!combustibleExpanded)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition ${
+                        location.pathname.startsWith('/inventario') ? 'bg-emerald-500/20 text-emerald-400' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                >
+                    <div className="flex items-center space-x-3">
+                        <Droplets className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-sm font-medium">Control de Combustible</span>
+                    </div>
+                    {combustibleExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {combustibleExpanded && (
+                    <div className="mt-1 ml-4 pl-4 border-l border-slate-700 space-y-1">
+                        {combustibleSubModules.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
+                                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                                    }`
+                                }
+                            >
+                                <item.icon className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-sm">{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                )}
+            </>
+        ) : (
+            <NavLink
+                to="/inventario/tanques"
+                className={({ isActive }) =>
+                    `flex items-center justify-center px-3 py-2 rounded-lg transition ${
+                        isActive ? 'bg-emerald-500 text-white' : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                }
+            >
+                <Droplets className="w-5 h-5 flex-shrink-0" />
+            </NavLink>
+        )}
+    </div>
+)}
         {/* Inteligencia de Negocio, Reporting */}
         {['administrador', 'gerente', 'auditor'].includes(userRole) && (
     <div className="pt-4 mt-4 border-t border-slate-800">

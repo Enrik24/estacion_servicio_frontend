@@ -1187,10 +1187,11 @@ function TurnosAdminModule() {
   const verVentas = async (turno) => {
     setTurnoSeleccionado(turno);
     setLoadingVentas(true);
+    
     try {
       const response = await ventasService.getAll();
       const data = Array.isArray(response.data) ? response.data : response.data.results || [];
-      setVentas(data.filter(v => v.turno === turno.id));
+      setVentas(data.filter(v => v.turno === turno.id && v.estado === 'COMPLETADA'));
     } catch (err) {
       console.error('Error cargando ventas:', err);
       setVentas([]);
