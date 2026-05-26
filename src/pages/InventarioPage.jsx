@@ -4,7 +4,7 @@ import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import apiClient from '../services/api';
+import { inventarioService } from '../services/inventarioService';
 
 function NivelBar({ porcentaje, enAlerta }) {
     const color = enAlerta ? 'bg-red-500' : porcentaje < 50 ? 'bg-amber-400' : 'bg-emerald-500';
@@ -41,16 +41,19 @@ function InventarioPage() {
 
     useEffect(() => {
         cargarDatos();
+        const interval = setInterval(cargarDatos, 15000); // cada 5 segundos
+        return () => clearInterval(interval);
     }, []);
 
     const cargarDatos = async () => {
         setLoading(true);
         try {
             const [tanquesRes, sucursalesRes, tiposRes] = await Promise.all([
-                apiClient.get('/inventario/tanques/'),
-                apiClient.get('/sucursales/'),
-                apiClient.get('/tipos-combustible/'),
+                inventarioService.getTanques(),
+                inventarioService.getSucursales(),
+                inventarioService.getTiposCombustible(),
             ]);
+            
             setTanques(Array.isArray(tanquesRes.data) ? tanquesRes.data : tanquesRes.data.results || []);
             setSucursales(Array.isArray(sucursalesRes.data) ? sucursalesRes.data : sucursalesRes.data.results || []);
             setTiposCombustible(Array.isArray(tiposRes.data) ? tiposRes.data : tiposRes.data.results || []);
@@ -65,7 +68,7 @@ function InventarioPage() {
         e.preventDefault();
         setLoadingAction(true);
         try {
-            await apiClient.post('/inventario/tanques/', formTanque);
+            await inventarioService.crearTanque(formTanque);
             setExito('Tanque creado correctamente');
             setShowCrearModal(false);
             setFormTanque({ sucursal: '', tipo_combustible: '', capacidad_maxima: '', nivel_actual: '', nivel_minimo_alerta: '' });
@@ -81,7 +84,7 @@ function InventarioPage() {
         e.preventDefault();
         setLoadingAction(true);
         try {
-            await apiClient.post(`/inventario/tanques/${tanqueSeleccionado.id}/registrar_descarga/`, formDescarga);
+            await inventarioService.registrarDescarga(tanqueSeleccionado.id, formDescarga);
             setExito('Descarga registrada correctamente');
             setShowDescargaModal(false);
             setFormDescarga({ volumen_descargado: '', observaciones: '' });
@@ -97,7 +100,7 @@ function InventarioPage() {
         e.preventDefault();
         setLoadingAction(true);
         try {
-            await apiClient.patch(`/inventario/tanques/${tanqueSeleccionado.id}/ampliar_capacidad/`, formAmpliar);
+            await inventarioService.ampliarCapacidad(tanqueSeleccionado.id, formAmpliar);
             setExito('Capacidad ampliada correctamente');
             setShowAmpliarModal(false);
             setFormAmpliar({ capacidad_maxima: '' });

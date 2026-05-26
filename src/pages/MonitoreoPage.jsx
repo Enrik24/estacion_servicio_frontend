@@ -3,7 +3,7 @@ import { RefreshCw, Activity } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
 import IslaCard from '../components/monitoreo/IslaCard';
-import apiClient from '../services/api';
+import { monitoreoService } from '../services/monitoreoService';
 
 function MonitoreoPage() {
     const [data, setData] = useState([]);
@@ -16,7 +16,7 @@ const [loadingHistorial, setLoadingHistorial] = useState(false);
     const cargarMonitoreo = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await apiClient.get('/monitoreo/surtidores/');
+            const res = await monitoreoService.getSurtidores();
             const result = Array.isArray(res.data) ? res.data : res.data.results || [];
             setData(result);
             setUltimaActualizacion(new Date());
@@ -30,18 +30,14 @@ const [loadingHistorial, setLoadingHistorial] = useState(false);
 
     useEffect(() => {
         cargarMonitoreo();
-        // Auto-refresh cada 30 segundos
-        const interval = setInterval(cargarMonitoreo, 30000);
+        // Auto-refresh cada 15 segundos
+        const interval = setInterval(cargarMonitoreo, 15000);
         return () => clearInterval(interval);
     }, [cargarMonitoreo]);
 
     const handleCambiarEstado = async (ladoId, nuevoEstado, descripcion) => {
         try {
-            await apiClient.post('/monitoreo/surtidores/cambiar_estado/', {
-                lado_id: ladoId,
-                estado: nuevoEstado,
-                descripcion,
-            });
+            await monitoreoService.cambiarEstado({ lado_id: ladoId, estado: nuevoEstado, descripcion });
             await cargarMonitoreo();
         } catch {
             setError('Error al cambiar estado del surtidor');
@@ -50,7 +46,7 @@ const [loadingHistorial, setLoadingHistorial] = useState(false);
 const cargarHistorial = async () => {
     setLoadingHistorial(true);
     try {
-        const res = await apiClient.get('/monitoreo/surtidores/historial/');
+        const res = await monitoreoService.getHistorial();
         const data = Array.isArray(res.data) ? res.data : res.data.results || [];
         setHistorial(data);
     } catch {
