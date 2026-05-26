@@ -73,7 +73,6 @@ useEffect(() => {
     { path: '/gerente/roles', label: 'Roles', icon: UserCog },
     { path: '/gerente/permisos', label: 'Permisos', icon: Key },
     { path: '/gerente/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
-    { path: '/monitoreo', label: 'Monitoreo Surtidores', icon: Activity },
 ];
  const ventasSubModules = [
     { path: '/ventas/turno', label: 'Turno', icon: Clock },
@@ -219,7 +218,7 @@ const combustibleSubModules = [
         )}
     </div>
 )}
-{['administrador', 'gerente'].includes(userRole) && (
+{['gerente'].includes(userRole) && (
           <div className="pt-4 mt-4 border-t border-slate-800">
             {!collapsed ? (
               <div className="space-y-1">
