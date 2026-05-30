@@ -14,6 +14,10 @@ export const tiposCombustibleService = {
     getAll: () => apiClient.get('/tipos-combustible/'),
 };
 
+export const preciosCombustibleService = {
+    getAll: () => apiClient.get('/precios-combustible/'),
+};
+
 export const clientesService = {
     getAll: () => apiClient.get('/clientes/'),
     getOne: (id) => apiClient.get(`/clientes/${id}/`),
