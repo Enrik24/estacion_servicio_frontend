@@ -23,7 +23,7 @@ function TurnoModule() {
     const [reporteData, setReporteData] = useState({ lado_id: '', descripcion: '' });
     const [loadingReporte, setLoadingReporte] = useState(false);
     const [exitoReporte, setExitoReporte] = useState(null);
-    const [ladosTurno, setLadosTurno] = useState([]);
+    const [totalRecaudado, setTotalRecaudado] = useState(0);
 
     useEffect(() => {
         cargarTurno();
@@ -105,6 +105,48 @@ function TurnoModule() {
             setLoadingReporte(false);
         }
     };
+    const [ladosTurno, setLadosTurno] = useState([]);
+
+const cargarLadosTurno = async (islaId) => {
+    try {
+        const res = await ladosService.getPorIsla(islaId);
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setLadosTurno(data);
+    } catch {
+        console.error('Error cargando lados');
+    }
+};
+  const cargarTurno = async () => {
+    setLoading(true);
+    try {
+        const response = await turnosService.getMiTurno();
+        const turnoData = response.data.turno || response.data;
+        setTurno(turnoData);
+        if (turnoData?.isla) {
+            await cargarLadosTurno(turnoData.isla);
+        }
+
+        // Cargar ventas del turno para calcular total
+        if (turnoData?.id) {
+            try {
+                const ventasRes = await ventasService.getMiTurnoVentas();
+                const ventasData = Array.isArray(ventasRes.data) 
+                    ? ventasRes.data 
+                    : ventasRes.data.ventas || [];
+                const total = ventasData
+                    .filter(v => v.estado === 'COMPLETADA')
+                    .reduce((acc, v) => acc + parseFloat(v.total), 0);
+                setTotalRecaudado(total.toFixed(2));
+            } catch {
+                setTotalRecaudado(0);
+            }
+        }
+    } catch (err) {
+        console.error('Error cargando turno:', err);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleCerrarTurno = async (e) => {
         e.preventDefault();
@@ -172,13 +214,29 @@ function TurnoModule() {
                     </div>
                     
                     <div className="flex gap-3">
-                        <Button onClick={() => setShowReporteModal(true)} fullWidth={false} size="small" className="!bg-amber-500 hover:!bg-amber-600">
-                            Reportar Problema
-                        </Button>
-                        <Button onClick={() => setShowCerrarModal(true)} fullWidth={false} size="small" className="!bg-red-500 hover:!bg-red-600">
-                            Cerrar Turno
-                        </Button>
-                    </div>
+    <Button
+        onClick={() => setShowReporteModal(true)}
+        fullWidth={false}
+        size="small"
+        className="!bg-amber-500 hover:!bg-amber-600"
+    >
+        Reportar Problema
+    </Button>
+    <Button
+       onClick={() => {
+    setCierreDatos({ 
+        monto_final: totalRecaudado, 
+        observaciones: '' 
+    });
+    setShowCerrarModal(true);
+}}
+        fullWidth={false}
+        size="small"
+        className="!bg-red-500 hover:!bg-red-600"
+    >
+        Cerrar Turno
+    </Button>
+</div>
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center space-y-4">
@@ -262,7 +320,22 @@ function TurnoModule() {
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                         <h3 className="text-xl font-bold mb-4">Cerrar Turno</h3>
                         <form onSubmit={handleCerrarTurno} className="space-y-4">
-                            <Input label="Monto final en caja" type="number" step="0.01" value={cierreDatos.monto_final} onChange={(e) => setCierreDatos({ ...cierreDatos, monto_final: e.target.value })} required />
+
+    {/*  Banner total recaudado */}
+    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+        <p className="text-xs text-gray-500 uppercase font-semibold">Total recaudado en ventas</p>
+        <p className="text-2xl font-bold text-emerald-600">Bs. {totalRecaudado}</p>
+        <p className="text-xs text-gray-400 mt-1">Este monto fue pre-llenado automáticamente</p>
+    </div>
+
+    <Input
+        label="Monto final en caja"
+        type="number"
+        step="0.01"
+        value={cierreDatos.monto_final}
+        onChange={(e) => setCierreDatos({ ...cierreDatos, monto_final: e.target.value })}
+        required
+    />
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Observaciones</label>
                                 <textarea value={cierreDatos.observaciones} onChange={(e) => setCierreDatos({ ...cierreDatos, observaciones: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={3} placeholder="Novedades del turno..." />
@@ -502,6 +575,8 @@ function RegistrarVentaModule() {
         try {
             const res = await vehiculosService.registrarClienteVehiculo(formNuevoCliente);
             const v = res.data.vehiculo;
+
+            //  Mostrar credenciales si fueron creadas
             if (res.data.credenciales && !res.data.credenciales.error) {
                 if (res.data.credenciales.ya_existia) {
                     alert(`✅ Cliente registrado en esta empresa.\n\nEste cliente ya tiene credenciales:\nEmail: ${res.data.credenciales.email}\n\nPuede usar sus credenciales existentes.`);
