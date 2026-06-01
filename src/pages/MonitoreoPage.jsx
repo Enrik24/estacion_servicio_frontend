@@ -131,7 +131,7 @@ function MonitoreoPage() {
                             <p class="text-2xl font-black text-slate-900 mt-1">{totalIslas}</p>
                         </div>
                         <div class="bg-blue-50 border border-blue-200 rounded-xl shadow-xs p-4">
-                            <p class="text-xs text-blue-500 uppercase font-semibold tracking-wider">Cargas Remotas (CU 14)</p>
+                            <p class="text-xs text-blue-500 uppercase font-semibold tracking-wider">Cargas Remotas</p>
                             <p class="text-2xl font-black text-blue-600 mt-1 flex items-center gap-2">
                                 {totalManguerasEnCarga} <span class="text-[10px] bg-blue-500 text-white font-bold px-1.5 py-0.5 rounded animate-pulse">LPR</span>
                             </p>
