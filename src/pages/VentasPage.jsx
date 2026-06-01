@@ -333,7 +333,7 @@ function RegistrarVentaModule() {
         const ejecutarPolling = () => {
             if (!document.hidden) cargarDatosPista();
         };
-        const intervalId = setInterval(ejecutarPolling, 5000);
+        const intervalId = setInterval(ejecutarPolling, 15000);
         return () => clearInterval(intervalId);
     }, [turno]);
 
