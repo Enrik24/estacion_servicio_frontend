@@ -39,33 +39,6 @@ function TurnoModule() {
             console.error('Error cargando islas:', err);
         }
     };
-
-    const cargarLadosTurno = async (islaId) => {
-        try {
-            const res = await ladosService.getPorIsla(islaId);
-            const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-            setLadosTurno(data);
-        } catch {
-            console.error('Error cargando lados');
-        }
-    };
-
-    const cargarTurno = async () => {
-        setLoading(true);
-        try {
-            const response = await turnosService.getMiTurno();
-            const turnoData = response.data.turno || response.data;
-            setTurno(turnoData);
-            if (turnoData?.isla) {
-                await cargarLadosTurno(turnoData.isla);
-            }
-        } catch (err) {
-            console.error('Error cargando turno:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleAbrirTurno = async (e) => {
         e.preventDefault();
         setLoading(true);
