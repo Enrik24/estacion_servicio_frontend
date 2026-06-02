@@ -12,16 +12,17 @@ function RegisterPage() {
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    acceptPrivacyPolicy: false
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
 
     if (errors[name]) {
@@ -49,6 +50,10 @@ function RegisterPage() {
       newErrors.confirmPassword = 'Las contraseñas no coinciden';
     }
 
+    if (!formData.acceptPrivacyPolicy) {
+      newErrors.acceptPrivacyPolicy = 'Debe aceptar la política de privacidad';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -61,11 +66,13 @@ function RegisterPage() {
     setLoading(true);
 
     try {
-      // Mapeo de campos: fullName -> nombre
+      // Mapeo de campos para la API
       const payload = {
         nombre: formData.fullName,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        password_confirmacion: formData.confirmPassword,
+        acepta_politica_privacidad: formData.acceptPrivacyPolicy
       };
 
       await authService.register(payload);
@@ -186,6 +193,27 @@ function RegisterPage() {
                   variant="filled"
                   error={errors.confirmPassword}
                 />
+              </div>
+
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="privacy"
+                    name="acceptPrivacyPolicy"
+                    type="checkbox"
+                    checked={formData.acceptPrivacyPolicy}
+                    onChange={handleChange}
+                    className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-orange-500 cursor-pointer"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="privacy" className="font-medium text-slate-700 cursor-pointer">
+                    Acepto la política de privacidad
+                  </label>
+                  {errors.acceptPrivacyPolicy && (
+                    <p className="text-red-500 text-xs mt-1">{errors.acceptPrivacyPolicy}</p>
+                  )}
+                </div>
               </div>
 
               <Button

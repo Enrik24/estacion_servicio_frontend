@@ -24,7 +24,7 @@ function LandingPage() {
     // Check authentication at click time
     const token = localStorage.getItem('access_token');
     if (token) {
-      navigate('/'); // Stay on same page since user is already here
+      navigate('/comprar-combustible');
     } else {
       navigate('/register');
     }
@@ -144,7 +144,7 @@ function LandingPage() {
                 <button className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg">
                   COMENZAR AHORA
                 </button>
-                <button className="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-slate-900 transition">
+                <button onClick={() => navigate('/sucursales')} className="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-slate-900 transition">
                   VER SUCURSALES
                 </button>
               </div>
@@ -287,7 +287,7 @@ function LandingPage() {
             <p className="text-xl text-gray-300 mb-8 leading-relaxed">
               Contamos con una red estratégica de estaciones de servicio distribuidas en las principales ciudades y rutas del país, garantizando acceso continuo a combustible de calidad.
             </p>
-            <button className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg">
+            <button onClick={() => navigate('/sucursales')} className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg">
               LOCALIZAR SURTIDOR CERCANO
             </button>
           </motion.div>

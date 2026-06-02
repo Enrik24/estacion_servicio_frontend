@@ -6,6 +6,7 @@ export const clientesService = {
   create: (data) => apiClient.post('/clientes/', data),
   update: (id, data) => apiClient.put(`/clientes/${id}/`, data),
   delete: (id) => apiClient.delete(`/clientes/${id}/`),
+  completarPerfil: (data) => apiClient.put('/perfil/completar/', data),
 };
 
 export default clientesService;

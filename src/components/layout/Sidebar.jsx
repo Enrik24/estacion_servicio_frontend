@@ -20,7 +20,8 @@ import {
   Wallet,
   Database,
   BarChart3,
-  FileText
+  FileText,
+  Receipt
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -66,6 +67,7 @@ function Sidebar() {
   const ventasSubModules = [
     { path: '/ventas/turno', label: 'Turno', icon: Clock },
     { path: '/ventas/registrar', label: 'Registrar venta', icon: ShoppingCart },
+    { path: '/ventas/prepago', label: 'Órdenes de Venta', icon: Receipt },
   ];
   const sucursalesSubModules = [
     { path: '/admin/sucursales', label: 'Sucursales', icon: Building2 },

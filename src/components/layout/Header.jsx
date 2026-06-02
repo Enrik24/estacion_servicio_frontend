@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
-import { ArrowRight, User, Settings, LogOut, ChevronDown, Menu, X, Bell, ArrowLeft } from 'lucide-react';
+import { ArrowRight, User, Settings, LogOut, ChevronDown, Menu, X, Bell, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../../services/api';
 
@@ -105,7 +105,7 @@ function Header({
           {showNav && (
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#soporte" className={`${linkStyles} transition`}>Soporte</a>
-              <a href="#sucursales" className={`${linkStyles} transition`}>Sucursales</a>
+              <button onClick={() => navigate('/sucursales')} className={`${linkStyles} transition bg-transparent border-none cursor-pointer p-0`}>Sucursales</button>
               <a href="#servicios" className={`${linkStyles} transition`}>Servicios</a>
             </nav>
           )}
@@ -184,11 +184,19 @@ function Header({
                       ) : (
   <>
     <button
-      onClick={() => navigate('/profile')}
+      onClick={() => navigate('/mi-perfil')}
       className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
     >
       <User className="w-4 h-4 text-gray-600" />
       <span className="text-gray-700">Perfil</span>
+    </button>
+
+    <button
+      onClick={() => navigate('/mis-compras')}
+      className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
+    >
+      <ShoppingBag className="w-4 h-4 text-gray-600" />
+      <span className="text-gray-700">Mis Compras</span>
     </button>
 
     {/* Solo mostrar Panel Admin si el usuario es Administrador o Gerente */}
@@ -264,7 +272,7 @@ function Header({
           <div className="md:hidden py-4 border-t border-gray-700">
             <nav className="flex flex-col space-y-4">
               <a href="#soporte" className={`${linkStyles} transition`}>Soporte</a>
-              <a href="#sucursales" className={`${linkStyles} transition`}>Sucursales</a>
+              <button onClick={() => { navigate('/sucursales'); setMobileMenuOpen(false); }} className={`${linkStyles} transition bg-transparent border-none cursor-pointer p-0 text-left`}>Sucursales</button>
               <a href="#servicios" className={`${linkStyles} transition`}>Servicios</a>
               <button 
                 onClick={() => navigate('/login')}

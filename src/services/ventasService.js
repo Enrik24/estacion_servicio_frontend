@@ -55,3 +55,9 @@ export const vehiculosService = {
     buscarPorPlaca: (placa) => apiClient.get(`/vehiculos/buscar_placa/?placa=${placa}`),
     registrarClienteVehiculo: (data) => apiClient.post('/vehiculos/registrar_cliente_vehiculo/', data),
 };
+
+export const prepagoOperadorService = {
+    validarPrepago: (numeroOrden) => apiClient.get(`/prepago/validar/${numeroOrden}/`),
+    despacharPrepago: (numeroOrden, ladoId) => apiClient.post(`/prepago/despachar/${numeroOrden}/`, { lado_id: ladoId }),
+    getOrdenesPendientes: (estado = 'TODOS') => apiClient.get(`/prepago/ordenes-pendientes/?estado=${estado}`),
+};

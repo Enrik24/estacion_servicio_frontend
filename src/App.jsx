@@ -6,22 +6,29 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyAccountPage from './pages/VerifyAccountPage';
 import AdminPanel from './pages/AdminPanel';
 import VentasPanel from './pages/VentasPage';
 import BitacoraPage from './pages/BitacoraPage';
 import ReportesPage from './pages/ReportesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsolidacionCaja from './pages/ConsolidacionCaja';
+import PrepaidOrderWizard from './pages/PrepaidOrder/PrepaidOrderWizard';
+import ProfilePage from './pages/ProfilePage';
+import MisComprasPage from './pages/MisComprasPage';
+import SucursalesPage from './pages/SucursalesPage';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/sucursales" element={<SucursalesPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/verify-account/:token" element={<VerifyAccountPage />} />
         <Route path="/admin/*" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
             <AdminPanel />
@@ -45,6 +52,21 @@ function App() {
         <Route path="/reportes" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente', 'Auditor']}>
             <ReportesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/comprar-combustible" element={
+          <ProtectedRoute rolesPermitidos={['Cliente']}>
+            <PrepaidOrderWizard />
+          </ProtectedRoute>
+        } />
+        <Route path="/mi-perfil" element={
+          <ProtectedRoute rolesPermitidos={['Cliente', 'Administrador', 'Operador', 'Gerente', 'Auditor']}>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/mis-compras" element={
+          <ProtectedRoute rolesPermitidos={['Cliente']}>
+            <MisComprasPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

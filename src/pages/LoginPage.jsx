@@ -18,6 +18,26 @@ function LoginPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendStatus, setResendStatus] = useState({ loading: false, message: '', error: '' });
+
+  const handleResendVerification = async () => {
+    if (!formData.email) {
+      setResendStatus({ loading: false, message: '', error: 'Por favor, ingresa tu correo electrónico para reenviar la verificación.' });
+      return;
+    }
+    
+    setResendStatus({ loading: true, message: '', error: '' });
+    try {
+      await authService.resendVerification(formData.email);
+      setResendStatus({ loading: false, message: 'Correo de verificación reenviado. Por favor, revisa tu bandeja de entrada.', error: '' });
+    } catch (err) {
+      setResendStatus({ 
+        loading: false, 
+        message: '', 
+        error: err.response?.data?.error || 'Error al reenviar el correo. Intenta nuevamente.' 
+      });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -134,7 +154,29 @@ function LoginPage() {
                 )}
                 {error && (
                   <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded" aria-live="polite">
-                    {error}
+                    <p>{error}</p>
+                    {error.toLowerCase().includes('verific') && (
+                      <div className="mt-2">
+                        <button 
+                          type="button" 
+                          onClick={handleResendVerification}
+                          disabled={resendStatus.loading}
+                          className="text-orange-600 hover:text-orange-700 font-semibold underline text-xs"
+                        >
+                          {resendStatus.loading ? 'Enviando...' : 'Reenviar correo de verificación'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {resendStatus.message && (
+                  <div className="p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700 text-sm rounded" aria-live="polite">
+                    {resendStatus.message}
+                  </div>
+                )}
+                {resendStatus.error && (
+                  <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded" aria-live="polite">
+                    {resendStatus.error}
                   </div>
                 )}
                 <Input
