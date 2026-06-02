@@ -1,3 +1,4 @@
+@import 'leaflet/dist/leaflet.css';
 @import "tailwindcss";
 
 @theme {
@@ -10,4 +11,14 @@ body {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Añade esto a tu archivo CSS global */
+@keyframes flotar-suave {
+  0%, 100% { transform: translateY(-5px); }
+  50% { transform: translateY(0); }
+}
+
+.animate-flotar-suave {
+  animation: flotar-suave 3s ease-in-out infinite;
 }

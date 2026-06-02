@@ -5,7 +5,6 @@ import UsuariosModule from './admin/Usuarios';
 import RolesModule from './admin/Roles';
 import PermisosModule from './admin/Permisos';
 import BitacoraModule from './admin/Bitacora';
-
 function AdminPanel() {
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -16,9 +15,14 @@ function AdminPanel() {
           <Routes>
             <Route path="/" element={<Navigate to="usuarios" replace />} />
             <Route path="usuarios" element={<UsuariosModule />} />
+            <Route path="clientes-limites" element={<ClientesLimitesModule />} />
+            <Route path="predicciones-ia" element={<PrediccionesIAModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
+            <Route path="sucursales" element={<SucursalesModule />} />
+            <Route path="turnos" element={<TurnosAdminModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
+            <Route path="backup" element={<BackupModule />} />
           </Routes>
         </main>
       </div>
@@ -26,4 +30,5 @@ function AdminPanel() {
   );
 }
 
+export { RolesModule, PermisosModule, BitacoraModule, TurnosAdminModule };
 export default AdminPanel;

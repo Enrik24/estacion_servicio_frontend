@@ -104,10 +104,17 @@ function Header({
             className="flex items-center cursor-pointer"
             onClick={() => navigate('/')}
           >
-            <h1 className="text-2xl font-bold">
-              <span className={variant === 'dark' || scrolled || (transparent && !scrolled) ? 'text-white' : 'text-slate-900'}>Surtidor</span>
-              <span className="text-emerald-500">Bolivia</span>
-            </h1>
+            {(() => {
+    const userStr = localStorage.getItem('user');
+    const userData = userStr ? JSON.parse(userStr) : null;
+    const nombreMostrar = userData?.sucursal_nombre || userData?.empresa_nombre || 'Bolivia';
+    const textColor = variant === 'dark' || scrolled || (transparent && !scrolled) ? 'text-white' : 'text-slate-900';
+    return (
+        <h1 className="text-2xl font-bold">
+            <span className="text-emerald-500">{nombreMostrar}</span>
+        </h1>
+    );
+})()}
           </div>
           
           {showNav && (

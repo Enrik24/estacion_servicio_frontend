@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Fuel, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
@@ -49,7 +49,7 @@ function LoginPage() {
       const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
       setError(errorMessage);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -129,6 +129,16 @@ function LoginPage() {
               {error && <ErrorMessage title="Error de autenticación" message={error} />}
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {successMessage && (
+                  <div className="p-3 bg-green-50 border-l-4 border-green-500 text-green-700 text-sm rounded">
+                    {successMessage}
+                  </div>
+                )}
+                {error && (
+                  <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded" aria-live="polite">
+                    {error}
+                  </div>
+                )}
                 <Input
                   type="email"
                   name="email"
