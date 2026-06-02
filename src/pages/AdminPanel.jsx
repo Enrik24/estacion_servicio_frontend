@@ -1748,126 +1748,219 @@ export const backupService = {
     }
 };
 function BackupModule() {
-  const [loading, setLoading] = useState(false);
-  const [loadingRestore, setLoadingRestore] = useState(false);
-  const [error, setError] = useState(null);
-  const [exito, setExito] = useState(null);
-  const [archivoRestore, setArchivoRestore] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [loadingRestore, setLoadingRestore] = useState(false);
+    const [loadingBackups, setLoadingBackups] = useState(false);
+    const [error, setError] = useState(null);
+    const [exito, setExito] = useState(null);
+    const [archivoRestore, setArchivoRestore] = useState(null);
+    const [backups, setBackups] = useState([]);
+    const [showBackups, setShowBackups] = useState(false);
 
-  const handleDescargar = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await backupService.descargar();
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-      link.setAttribute('download', `backup_${fecha}.sql`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      setExito('Backup descargado correctamente');
-    } catch (err) {
-      setError('Error al generar el backup');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const cargarBackups = async () => {
+        setLoadingBackups(true);
+        try {
+            const res = await apiClient.get('/backup/listar/');
+            setBackups(Array.isArray(res.data) ? res.data : []);
+        } catch {
+            setError('Error al cargar lista de backups');
+        } finally {
+            setLoadingBackups(false);
+        }
+    };
 
-  const handleRestaurar = async () => {
-    if (!archivoRestore) {
-      setError('Selecciona un archivo .sql para restaurar');
-      return;
-    }
-    if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales de la base de datos.')) return;
-    setLoadingRestore(true);
-    setError(null);
-    try {
-      await backupService.restaurar(archivoRestore);
-      setExito('Base de datos restaurada correctamente');
-      setArchivoRestore(null);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Error al restaurar el backup');
-    } finally {
-      setLoadingRestore(false);
-    }
-  };
+    const handleDescargar = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await backupService.descargar();
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            link.setAttribute('download', `backup_${fecha}.sql`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            setExito('Backup descargado correctamente');
+        } catch {
+            setError('Error al generar el backup');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
-        <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
-      </div>
+    const handleDescargarSupabase = async (nombre) => {
+        try {
+            const response = await apiClient.get(`/backup/descargar-supabase/${nombre}/`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', nombre);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch {
+            setError('Error al descargar backup');
+        }
+    };
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <p className="text-red-700 text-sm">{error}</p>
+    const handleRestaurar = async () => {
+        if (!archivoRestore) {
+            setError('Selecciona un archivo .sql para restaurar');
+            return;
+        }
+        if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales.')) return;
+        setLoadingRestore(true);
+        setError(null);
+        try {
+            await backupService.restaurar(archivoRestore);
+            setExito('Base de datos restaurada correctamente');
+            setArchivoRestore(null);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Error al restaurar el backup');
+        } finally {
+            setLoadingRestore(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
+                <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
+            </div>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-700 text-sm">{error}</p>
+                </div>
+            )}
+            {exito && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p className="text-emerald-700 text-sm">{exito}</p>
+                </div>
+            )}
+
+            {/* Generar Backup Manual */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 className="font-semibold text-slate-900 text-lg">Generar Backup Manual</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Descarga una copia de la base de datos ahora mismo.
+                    </p>
+                </div>
+                <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
+                    Descargar Backup
+                </Button>
+            </div>
+
+            {/* Backups automáticos en Supabase */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold text-slate-900 text-lg">Backups Automáticos</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Backups generados automáticamente cada día guardados en Supabase.
+                        </p>
+                    </div>
+                    <Button
+                        onClick={() => { setShowBackups(!showBackups); if (!showBackups) cargarBackups(); }}
+                        fullWidth={false}
+                        size="small"
+                        className="!bg-blue-600 hover:!bg-blue-700"
+                    >
+                        {showBackups ? 'Ocultar' : 'Ver backups'}
+                    </Button>
+                </div>
+
+                {showBackups && (
+                    <div>
+                        {loadingBackups ? (
+                            <p className="text-sm text-gray-400 text-center py-4">Cargando...</p>
+                        ) : backups.length === 0 ? (
+                            <p className="text-sm text-gray-400 text-center py-4">No hay backups disponibles</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Archivo</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Tamaño</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {backups.map((b, i) => (
+                                            <tr key={i} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-gray-700 font-mono text-xs">{b.nombre}</td>
+                                                <td className="px-4 py-3 text-gray-600">
+                                                    {b.fecha ? new Date(b.fecha).toLocaleString('es-BO') : '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600">
+                                                    {b.tamanio ? `${(b.tamanio / 1024).toFixed(1)} KB` : '—'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <button
+                                                        onClick={() => handleDescargarSupabase(b.nombre)}
+                                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                    >
+                                                        Descargar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Restaurar Backup */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+                <div>
+                    <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> para restaurar.
+                        <span className="text-red-600 font-medium"> Esta acción reemplazará todos los datos actuales.</span>
+                    </p>
+                </div>
+                <div className="space-y-3">
+                    <input
+                        type="file"
+                        accept=".sql"
+                        onChange={(e) => {
+                            setArchivoRestore(e.target.files[0]);
+                            setError(null);
+                            setExito(null);
+                        }}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
+                    />
+                    {archivoRestore && (
+                        <p className="text-xs text-gray-500">
+                            Archivo: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
+                        </p>
+                    )}
+                    <Button
+                        onClick={handleRestaurar}
+                        loading={loadingRestore}
+                        fullWidth={false}
+                        size="small"
+                        className="!bg-red-600 hover:!bg-red-700"
+                    >
+                        Restaurar Base de Datos
+                    </Button>
+                </div>
+            </div>
         </div>
-      )}
-      {exito && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
-          <p className="text-emerald-700 text-sm">{exito}</p>
-        </div>
-      )}
-
-      {/* Tarjeta Backup */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-        <div>
-          <h3 className="font-semibold text-slate-900 text-lg">Generar Backup</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Descarga una copia completa de la base de datos en formato <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span>. Guarda este archivo en un lugar seguro.
-          </p>
-        </div>
-        <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
-          Descargar Backup
-        </Button>
-      </div>
-
-      {/* Tarjeta Restore */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-        <div>
-          <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> generado previamente. <span className="text-red-600 font-medium">Esta acción reemplazará todos los datos actuales.</span>
-          </p>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-              Seleccionar archivo .sql
-            </label>
-            <input
-              type="file"
-              accept=".sql"
-              onChange={(e) => {
-                setArchivoRestore(e.target.files[0]);
-                setError(null);
-                setExito(null);
-              }}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
-            />
-          </div>
-          {archivoRestore && (
-            <p className="text-xs text-gray-500">
-              Archivo seleccionado: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
-            </p>
-          )}
-          <Button
-            onClick={handleRestaurar}
-            loading={loadingRestore}
-            fullWidth={false}
-            size="small"
-            className="!bg-red-600 hover:!bg-red-700"
-          >
-            Restaurar Base de Datos
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 function AdminPanel() {
   return (
