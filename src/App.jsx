@@ -6,29 +6,52 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyAccountPage from './pages/VerifyAccountPage';
 import AdminPanel from './pages/AdminPanel';
 import VentasPanel from './pages/VentasPage';
 import BitacoraPage from './pages/BitacoraPage';
 import ReportesPage from './pages/ReportesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConsolidacionCaja from './pages/ConsolidacionCaja';
+import PrepaidOrderWizard from './pages/PrepaidOrder/PrepaidOrderWizard';
+import ProfilePage from './pages/ProfilePage';
+import MisComprasPage from './pages/MisComprasPage';
+import SucursalesPage from './pages/SucursalesPage';
+import SuperAdminPanel from './pages/SuperAdminPanel';
+import GerentePanel from './pages/GerentePanel';
+import MonitoreoPage from './pages/MonitoreoPage';
+import InventarioPage from './pages/InventarioPage';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/sucursales" element={<SucursalesPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/verify-account/:token" element={<VerifyAccountPage />} />
         <Route path="/admin/*" element={
-          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+          <ProtectedRoute rolesPermitidos={['Administrador']}>
             <AdminPanel />
           </ProtectedRoute>
         } />
         <Route path="/admin/consolidacion" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <ConsolidacionCaja />
+          </ProtectedRoute>
+        } />
+        // Agrega ruta de gerente
+        <Route path="/gerente/*" element={
+          <ProtectedRoute rolesPermitidos={['Gerente']}>
+            <GerentePanel />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/gerente/consolidacion" element={
+          <ProtectedRoute rolesPermitidos={['Gerente']}>
             <ConsolidacionCaja />
           </ProtectedRoute>
         } />
@@ -42,9 +65,40 @@ function App() {
             <BitacoraPage />
           </ProtectedRoute>
         } />
+
         <Route path="/reportes" element={
           <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente', 'Auditor']}>
             <ReportesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/comprar-combustible" element={
+          <ProtectedRoute rolesPermitidos={['Cliente']}>
+            <PrepaidOrderWizard />
+          </ProtectedRoute>
+        } />
+        <Route path="/mi-perfil" element={
+          <ProtectedRoute rolesPermitidos={['Cliente', 'Administrador', 'Operador', 'Gerente', 'Auditor']}>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/mis-compras" element={
+          <ProtectedRoute rolesPermitidos={['Cliente']}>
+            <MisComprasPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/superadmin" element={
+          <ProtectedRoute soloSuperAdmin={true}>
+            <SuperAdminPanel />
+          </ProtectedRoute>
+        } />
+        <Route path="/monitoreo" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <MonitoreoPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/inventario/tanques" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <InventarioPage />
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />

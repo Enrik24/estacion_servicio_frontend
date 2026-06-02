@@ -1,5 +1,6 @@
 import apiClient from './api';
 
+
 // Función para limpiar tokens expirados
 const clearExpiredTokens = () => {
   const accessToken = localStorage.getItem('access_token');
@@ -18,37 +19,28 @@ const clearExpiredTokens = () => {
  * Maneja login, logout, verificación y refresco de tokens
  */
 export const authService = {
-  login: async (credentials) => {
+  
+login: async (credentials) => {
     clearExpiredTokens();
 
-    console.log('=== LOGIN SERVICE - Sending request ===');
-    console.log('Credentials:', credentials);
-
     const response = await apiClient.post('/auth/login/', credentials);
-
-    console.log('=== LOGIN SERVICE - Response received ===');
-    console.log('Response data:', response.data);
-
     const { access, refresh, user } = response.data;
 
     if (!access) {
-      console.error('=== LOGIN SERVICE - ERROR: No access token in response ===');
-      throw new Error('No access token received from server');
+        throw new Error('No access token received from server');
     }
 
     const userNormalizado = {
-      ...user,
-      rol: user?.roles_detalle?.[0]?.nombre || ''
+        ...user,
+        rol: user?.roles_detalle?.[0]?.nombre || ''
     };
 
     localStorage.setItem('access_token', access);
     localStorage.setItem('refresh_token', refresh);
     localStorage.setItem('user', JSON.stringify(userNormalizado));
-    console.log('=== LOGIN SERVICE - Tokens saved to localStorage ===');
-    console.log('All localStorage keys after save:', Object.keys(localStorage));
 
     return response.data;
-  },
+},
 
   logout: async () => {
     try {
@@ -96,6 +88,14 @@ export const authService = {
 
   register: async (userData) => {
     return apiClient.post('/auth/register/', userData);
+  },
+
+  verifyAccount: async (token) => {
+    return apiClient.post(`/auth/verify-account/${token}/`);
+  },
+
+  resendVerification: async (email) => {
+    return apiClient.post('/auth/resend-verification/', { email });
   }
 };
 

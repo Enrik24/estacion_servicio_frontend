@@ -24,18 +24,28 @@ function UsuariosModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [formData, setFormData] = useState({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' });
-
+  const [formData, setFormData] = useState({ nombre: '', email: '', rol: '', sucursal: '', is_active: true, password: '', confirmPassword: '' });
+  const [sucursales, setSucursales] = useState([]);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [exito, setExito] = useState('');
 
   // Load users and roles on mount
   useEffect(() => {
     loadUsers();
     loadRoles();
+    loadSucursales();
   }, []);
-
+  const loadSucursales = async () => {
+    try {
+      const response = await sucursalesService.getAll();
+      const data = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setSucursales(data);
+    } catch (err) {
+      console.error('Error loading sucursales:', err);
+    }
+  };
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -92,7 +102,20 @@ function UsuariosModule() {
       alert('La contraseña es obligatoria para nuevos usuarios');
       return;
     }
+    if (formData.sucursal && formData.rol) {
+      const rolSeleccionado = roles.find(r => r.id === parseInt(formData.rol));
+      const esGerente = rolSeleccionado?.nombre?.toLowerCase().includes('gerente');
 
+      if (esGerente) {
+        const sucursalSeleccionada = sucursales.find(s => s.id === parseInt(formData.sucursal));
+        if (sucursalSeleccionada?.gerente && sucursalSeleccionada.gerente.id !== editingUser?.id) {
+          const confirmar = confirm(
+            `La sucursal "${sucursalSeleccionada.nombre}" ya tiene asignado al gerente "${sucursalSeleccionada.gerente.nombre}". ¿Deseas reasignar igualmente?`
+          );
+          if (!confirmar) return;
+        }
+      }
+    }
     try {
       let userId;
       if (editingUser) {
@@ -117,9 +140,11 @@ function UsuariosModule() {
       }
 
       await loadUsers();
+      setExito('Usuario guardado correctamente');
+      setTimeout(() => setExito(''), 3000);
       setShowModal(false);
       setEditingUser(null);
-      setFormData({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' });
+      setFormData({ nombre: '', email: '', rol: '', sucursal: '', is_active: true, password: '', confirmPassword: '' });
     } catch (err) {
       alert('Error al guardar usuario: ' + (err.response?.data?.detail || err.message));
     }
@@ -140,9 +165,11 @@ function UsuariosModule() {
       nombre: user.nombre || '',
       email: user.email || '',
       rol: userRol,
+      sucursal: user.sucursal || '',
       is_active: user.is_active !== undefined ? user.is_active : true,
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+
     });
     setShowModal(true);
   };
@@ -162,8 +189,13 @@ function UsuariosModule() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Gestión de Usuarios</h2>
+        {exito && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-emerald-700 text-sm">
+            {exito}
+          </div>
+        )}
         <div className="mt-4">
-          <Button onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', rol: '', is_active: true, password: '', confirmPassword: '' }); setShowModal(true); }} fullWidth={false} size="small">Nuevo Usuario</Button>
+          <Button onClick={() => { setEditingUser(null); setFormData({ nombre: '', email: '', rol: '', sucursal: '', is_active: true, password: '', confirmPassword: '' }); setShowModal(true); }} fullWidth={false} size="small">Nuevo Usuario</Button>
         </div>
       </div>
 
@@ -326,6 +358,23 @@ function UsuariosModule() {
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                  Sucursal asignada (opcional)
+                </label>
+                <select
+                  value={formData.sucursal}
+                  onChange={(e) => setFormData({ ...formData, sucursal: e.target.value })}
+                  className="block w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="">Sin sucursal asignada</option>
+                  {sucursales.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
                     </option>
                   ))}
                 </select>
@@ -743,6 +792,11 @@ function SucursalesModule() {
   const [editando, setEditando] = useState(null);
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
+  const [tiposCombustible, setTiposCombustible] = useState([]);
+  const [showPreciosModal, setShowPreciosModal] = useState(false);
+  const [tiposEmpresa, setTiposEmpresa] = useState([]);
+  const [loadingPrecios, setLoadingPrecios] = useState(false);
+  const [tiposSeleccionados, setTiposSeleccionados] = useState([]);
   const [formData, setFormData] = useState({
     nombre: '',
     direccion: '',
@@ -757,8 +811,18 @@ function SucursalesModule() {
 
   useEffect(() => {
     cargarSucursales();
+    cargarTipos();
   }, []);
 
+  const cargarTipos = async () => {
+    try {
+      const res = await apiClient.get('/tipos-combustible/');
+      const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+      setTiposCombustible(data);
+    } catch (err) {
+      console.error('Error cargando tipos:', err);
+    }
+  };
   const cargarSucursales = async () => {
     setLoading(true);
     try {
@@ -777,11 +841,12 @@ function SucursalesModule() {
     e.preventDefault();
     setError(''); setExito('');
     try {
+      const payload = { ...formData, tipos_combustible: tiposSeleccionados };
       if (editando) {
-        await sucursalesService.actualizar(editando.id, formData);
+        await sucursalesService.actualizar(editando.id, payload);
         setExito('Sucursal actualizada correctamente');
       } else {
-        await sucursalesService.crear(formData);
+        await sucursalesService.crear(payload);
         setExito('Sucursal creada correctamente');
       }
       setShowModal(false);
@@ -795,6 +860,7 @@ function SucursalesModule() {
 
   const handleEditar = (sucursal) => {
     setEditando(sucursal);
+    setTiposSeleccionados(sucursal.tipos_combustible || []);
     setFormData({
       nombre: sucursal.nombre || '',
       direccion: sucursal.direccion || '',
@@ -819,8 +885,35 @@ function SucursalesModule() {
       setError('Error al eliminar sucursal');
     }
   };
-
+  const handleActualizarPrecios = async (e) => {
+    e.preventDefault();
+    setLoadingPrecios(true);
+    try {
+        await Promise.all(
+            tiposEmpresa.map(t =>
+                apiClient.patch(`/tipos-combustible/${t.id}/`, { precio_litro: t.precio_litro })
+            )
+        );
+        setExito('Precios actualizados correctamente');
+        setShowPreciosModal(false);
+    } catch {
+        setError('Error al actualizar precios');
+    } finally {
+        setLoadingPrecios(false);
+    }
+};
+const abrirModalPrecios = async () => {
+    try {
+        const res = await apiClient.get('/tipos-combustible/');
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setTiposEmpresa(data);
+        setShowPreciosModal(true);
+    } catch (err) {
+        setError('Error al cargar tipos de combustible');
+    }
+};
   const resetForm = () => {
+    setTiposSeleccionados([]);
     setFormData({
       nombre: '', direccion: '', telefono: '', nit: '',
       cantidad_islas: 1, tiene_gnv: false, estado: 'ACTIVA',
@@ -832,6 +925,15 @@ function SucursalesModule() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-2xl font-bold text-slate-900">Gestión de Sucursales</h2>
+
+      <Button
+    onClick={abrirModalPrecios}
+    fullWidth={false}
+    size="small"
+    className="!bg-emerald-600 hover:!bg-emerald-700"
+>
+    Actualizar Precios
+</Button>
         <Button onClick={() => { resetForm(); setEditando(null); setShowModal(true); }} fullWidth={false} size="small">
           Nueva Sucursal
         </Button>
@@ -854,6 +956,11 @@ function SucursalesModule() {
                 <div>
                   <h3 className="font-bold text-slate-900">{s.nombre}</h3>
                   <p className="text-xs text-gray-500 mt-0.5">{s.direccion}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Gerente: <span className="font-medium text-slate-600">
+                      {s.gerente ? s.gerente.nombre : 'Sin asignar'}
+                    </span>
+                  </p>
                 </div>
                 <span className={`px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${s.estado === 'ACTIVA' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                   }`}>
@@ -898,7 +1005,7 @@ function SucursalesModule() {
           ))}
         </div>
       )}
-
+  
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -939,6 +1046,33 @@ function SucursalesModule() {
                     onSelect={(lat, lng) => setFormData({ ...formData, latitud: lat, longitud: lng })}
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                    Tipos de combustible disponibles
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {tiposCombustible.map(tipo => (
+                      <div key={tipo.id} className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id={`tipo-${tipo.id}`}
+                          checked={tiposSeleccionados.includes(tipo.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTiposSeleccionados([...tiposSeleccionados, tipo.id]);
+                            } else {
+                              setTiposSeleccionados(tiposSeleccionados.filter(id => id !== tipo.id));
+                            }
+                          }}
+                          className="h-4 w-4 text-emerald-500 rounded"
+                        />
+                        <label htmlFor={`tipo-${tipo.id}`} className="text-sm text-gray-700">
+                          {tipo.tipo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="sm:col-span-2 flex items-center gap-3">
                   <input type="checkbox" id="tiene_gnv" checked={formData.tiene_gnv} onChange={e => setFormData({ ...formData, tiene_gnv: e.target.checked })} className="h-4 w-4 text-emerald-500 rounded" />
                   <label htmlFor="tiene_gnv" className="text-sm text-gray-700">Esta sucursal tiene GNV</label>
@@ -951,8 +1085,46 @@ function SucursalesModule() {
             </form>
           </div>
         </div>
+        
       )}
+      {showPreciosModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold mb-1">Actualizar Precios</h3>
+            <p className="text-xs text-gray-400 mb-4">Los precios se aplicarán a todas las sucursales de la empresa.</p>
+            <form onSubmit={handleActualizarPrecios} className="space-y-3">
+                {tiposEmpresa.map((tipo, index) => (
+                    <div key={tipo.id} className="flex items-center justify-between gap-3">
+                        <label className="text-sm text-gray-700 font-medium w-40">
+                            {tipo.tipo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </label>
+                        <div className="flex items-center gap-1">
+                            <span className="text-xs text-gray-400">Bs.</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={tipo.precio_litro}
+                                onChange={(e) => {
+                                    const nuevos = [...tiposEmpresa];
+                                    nuevos[index] = { ...nuevos[index], precio_litro: e.target.value };
+                                    setTiposEmpresa(nuevos);
+                                }}
+                                className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
+                            />
+                            <span className="text-xs text-gray-400">/Lt</span>
+                        </div>
+                    </div>
+                ))}
+                <div className="flex gap-3 pt-2">
+                    <Button type="submit" loading={loadingPrecios}>Guardar precios</Button>
+                    <Button type="button" onClick={() => setShowPreciosModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
+                </div>
+            </form>
+        </div>
     </div>
+)}
+    </div>
+
   );
 }
 function TurnosAdminModule() {
@@ -1016,10 +1188,11 @@ function TurnosAdminModule() {
   const verVentas = async (turno) => {
     setTurnoSeleccionado(turno);
     setLoadingVentas(true);
+    
     try {
       const response = await ventasService.getAll();
       const data = Array.isArray(response.data) ? response.data : response.data.results || [];
-      setVentas(data.filter(v => v.turno === turno.id));
+      setVentas(data.filter(v => v.turno === turno.id && v.estado === 'COMPLETADA'));
     } catch (err) {
       console.error('Error cargando ventas:', err);
       setVentas([]);
@@ -1108,7 +1281,7 @@ function TurnosAdminModule() {
           </p>
 
           {tiposCombustible.length === 0 ? (
-            <p className="text-2xl font-bold text-slate-900 mt-1">{litrosGeneral} Lt</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">0 Lt</p>
           ) : (
             <>
               <div className="flex flex-wrap gap-1 mb-3">
@@ -1117,8 +1290,8 @@ function TurnosAdminModule() {
                     key={tipo}
                     onClick={() => setTabCombustible(tipo)}
                     className={`text-xs px-2 py-1 rounded-full border transition ${tabActivo === tipo
-                        ? 'bg-blue-100 text-blue-700 border-blue-300'
-                        : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+                      ? 'bg-blue-100 text-blue-700 border-blue-300'
+                      : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
                       }`}
                   >
                     {tipo.replace('Gasolina ', '').replace(' Oil', '')}
@@ -1156,7 +1329,6 @@ function TurnosAdminModule() {
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Apertura</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Ventas</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalle</th>
               </tr>
@@ -1188,7 +1360,6 @@ function TurnosAdminModule() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas || 0}</td>
-                    <td className="px-4 py-3 text-gray-600">{(t.total_litros || 0).toFixed(3)} Lt</td>
                     <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {(t.total_ventas || 0).toFixed(2)}</td>
                     <td className="px-4 py-3">
                       <button
@@ -1273,12 +1444,28 @@ const backupService = {
     });
   }
 };
+
 function BackupModule() {
   const [loading, setLoading] = useState(false);
   const [loadingRestore, setLoadingRestore] = useState(false);
+  const [loadingBackups, setLoadingBackups] = useState(false);
   const [error, setError] = useState(null);
   const [exito, setExito] = useState(null);
   const [archivoRestore, setArchivoRestore] = useState(null);
+  const [backups, setBackups] = useState([]);
+  const [showBackups, setShowBackups] = useState(false);
+
+  const cargarBackups = async () => {
+    setLoadingBackups(true);
+    try {
+      const res = await apiClient.get('/backup/listar/');
+      setBackups(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setError('Error al cargar lista de backups');
+    } finally {
+      setLoadingBackups(false);
+    }
+  };
 
   const handleDescargar = async () => {
     setLoading(true);
@@ -1295,10 +1482,28 @@ function BackupModule() {
       link.remove();
       window.URL.revokeObjectURL(url);
       setExito('Backup descargado correctamente');
-    } catch (err) {
+    } catch {
       setError('Error al generar el backup');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDescargarSupabase = async (nombre) => {
+    try {
+      const response = await apiClient.get(`/backup/descargar-supabase/${nombre}/`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', nombre);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Error al descargar backup');
     }
   };
 
@@ -1307,7 +1512,7 @@ function BackupModule() {
       setError('Selecciona un archivo .sql para restaurar');
       return;
     }
-    if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales de la base de datos.')) return;
+    if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales.')) return;
     setLoadingRestore(true);
     setError(null);
     try {
@@ -1339,12 +1544,12 @@ function BackupModule() {
         </div>
       )}
 
-      {/* Tarjeta Backup */}
+      {/* Generar Backup Manual */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
         <div>
-          <h3 className="font-semibold text-slate-900 text-lg">Generar Backup</h3>
+          <h3 className="font-semibold text-slate-900 text-lg">Generar Backup Manual</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Descarga una copia completa de la base de datos en formato <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span>. Guarda este archivo en un lugar seguro.
+            Descarga una copia de la base de datos ahora mismo.
           </p>
         </div>
         <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
@@ -1352,33 +1557,93 @@ function BackupModule() {
         </Button>
       </div>
 
-      {/* Tarjeta Restore */}
+      {/* Backups automáticos en Supabase */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-slate-900 text-lg">Backups Automáticos</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Backups generados automáticamente cada día guardados en Supabase.
+            </p>
+          </div>
+          <Button
+            onClick={() => { setShowBackups(!showBackups); if (!showBackups) cargarBackups(); }}
+            fullWidth={false}
+            size="small"
+            className="!bg-blue-600 hover:!bg-blue-700"
+          >
+            {showBackups ? 'Ocultar' : 'Ver backups'}
+          </Button>
+        </div>
+
+        {showBackups && (
+          <div>
+            {loadingBackups ? (
+              <p className="text-sm text-gray-400 text-center py-4">Cargando...</p>
+            ) : backups.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">No hay backups disponibles</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Archivo</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Tamaño</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {backups.map((b, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-700 font-mono text-xs">{b.nombre}</td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {b.fecha ? new Date(b.fecha).toLocaleString('es-BO') : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {b.tamanio ? `${(b.tamanio / 1024).toFixed(1)} KB` : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleDescargarSupabase(b.nombre)}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Descargar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Restaurar Backup */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
         <div>
           <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> generado previamente. <span className="text-red-600 font-medium">Esta acción reemplazará todos los datos actuales.</span>
+            Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> para restaurar.
+            <span className="text-red-600 font-medium"> Esta acción reemplazará todos los datos actuales.</span>
           </p>
         </div>
         <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-              Seleccionar archivo .sql
-            </label>
-            <input
-              type="file"
-              accept=".sql"
-              onChange={(e) => {
-                setArchivoRestore(e.target.files[0]);
-                setError(null);
-                setExito(null);
-              }}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
-            />
-          </div>
+          <input
+            type="file"
+            accept=".sql"
+            onChange={(e) => {
+              setArchivoRestore(e.target.files[0]);
+              setError(null);
+              setExito(null);
+            }}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
+          />
           {archivoRestore && (
             <p className="text-xs text-gray-500">
-              Archivo seleccionado: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
+              Archivo: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
             </p>
           )}
           <Button
@@ -1420,5 +1685,5 @@ function AdminPanel() {
   );
 }
 
-export { BitacoraModule };
+export { RolesModule, PermisosModule, BitacoraModule, TurnosAdminModule };
 export default AdminPanel;
