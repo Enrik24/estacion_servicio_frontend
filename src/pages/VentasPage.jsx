@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Fuel, Clock, ShoppingCart, AlertCircle, CheckCircle, Receipt } from 'lucide-react';
+import { Fuel, Clock, ShoppingCart, AlertCircle, CheckCircle, Receipt, ScanFace, Radio, Droplet } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import Header from '../components/layout/Header';
 import TicketModal from '../components/ventas/TicketModal';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import PasarelaPagoModal from '../components/PasarelaPagoModal';
+
 import { turnosService, islasService, ladosService, tiposCombustibleService, clientesService, ventasService, vehiculosService, prepagoOperadorService } from '../services/ventasService';
+import apiClient from '../services/api';
+
 
 function TurnoModule() {
     const [turno, setTurno] = useState(null);
@@ -18,23 +21,16 @@ function TurnoModule() {
     const [showCerrarModal, setShowCerrarModal] = useState(false);
     const [abrirDatos, setAbrirDatos] = useState({ isla: '', horario: '' });
     const [cierreDatos, setCierreDatos] = useState({ monto_final: '', observaciones: '' });
+    const [showReporteModal, setShowReporteModal] = useState(false);
+    const [reporteData, setReporteData] = useState({ lado_id: '', descripcion: '' });
+    const [loadingReporte, setLoadingReporte] = useState(false);
+    const [exitoReporte, setExitoReporte] = useState(null);
+    const [totalRecaudado, setTotalRecaudado] = useState(0);
 
     useEffect(() => {
         cargarTurno();
         cargarIslas();
     }, []);
-
-    const cargarTurno = async () => {
-        setLoading(true);
-        try {
-            const response = await turnosService.getMiTurno();
-            setTurno(response.data.turno || response.data);
-        } catch (err) {
-            console.error('Error cargando turno:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const cargarIslas = async () => {
         try {
@@ -45,7 +41,6 @@ function TurnoModule() {
             console.error('Error cargando islas:', err);
         }
     };
-
     const handleAbrirTurno = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -61,6 +56,68 @@ function TurnoModule() {
             await cargarTurno();
         } catch (err) {
             setError(err.response?.data?.error || 'Error al abrir turno');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleReportarProblema = async (e) => {
+        e.preventDefault();
+        setLoadingReporte(true);
+        try {
+            await apiClient.post('/monitoreo/surtidores/cambiar_estado/', {
+                lado_id: parseInt(reporteData.lado_id),
+                estado: 'FALLA',
+                descripcion: reporteData.descripcion,
+            });
+            setExitoReporte('Problema reportado correctamente. Se notificará al gerente.');
+            setShowReporteModal(false);
+            setReporteData({ lado_id: '', descripcion: '' });
+            setTimeout(() => setExitoReporte(null), 4000);
+        } catch {
+            setError('Error al reportar el problema');
+        } finally {
+            setLoadingReporte(false);
+        }
+    };
+    const [ladosTurno, setLadosTurno] = useState([]);
+
+    const cargarLadosTurno = async (islaId) => {
+        try {
+            const res = await ladosService.getPorIsla(islaId);
+            const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+            setLadosTurno(data);
+        } catch {
+            console.error('Error cargando lados');
+        }
+    };
+    const cargarTurno = async () => {
+        setLoading(true);
+        try {
+            const response = await turnosService.getMiTurno();
+            const turnoData = response.data.turno || response.data;
+            setTurno(turnoData);
+            if (turnoData?.isla) {
+                await cargarLadosTurno(turnoData.isla);
+            }
+
+            // Cargar ventas del turno para calcular total
+            if (turnoData?.id) {
+                try {
+                    const ventasRes = await ventasService.getMiTurnoVentas();
+                    const ventasData = Array.isArray(ventasRes.data)
+                        ? ventasRes.data
+                        : ventasRes.data.ventas || [];
+                    const total = ventasData
+                        .filter(v => v.estado === 'COMPLETADA')
+                        .reduce((acc, v) => acc + parseFloat(v.total), 0);
+                    setTotalRecaudado(total.toFixed(2));
+                } catch {
+                    setTotalRecaudado(0);
+                }
+            }
+        } catch (err) {
+            console.error('Error cargando turno:', err);
         } finally {
             setLoading(false);
         }
@@ -92,7 +149,11 @@ function TurnoModule() {
                     <p className="text-red-700 text-sm">{error}</p>
                 </div>
             )}
-
+            {exitoReporte && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+                    <p className="text-emerald-700 text-sm">{exitoReporte}</p>
+                </div>
+            )}
             {turno && turno.id ? (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -127,14 +188,30 @@ function TurnoModule() {
                         </div>
                     </div>
 
-                    <Button
-                        onClick={() => setShowCerrarModal(true)}
-                        fullWidth={false}
-                        size="small"
-                        className="!bg-red-500 hover:!bg-red-600"
-                    >
-                        Cerrar Turno
-                    </Button>
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={() => setShowReporteModal(true)}
+                            fullWidth={false}
+                            size="small"
+                            className="!bg-amber-500 hover:!bg-amber-600"
+                        >
+                            Reportar Problema
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setCierreDatos({
+                                    monto_final: totalRecaudado,
+                                    observaciones: ''
+                                });
+                                setShowCerrarModal(true);
+                            }}
+                            fullWidth={false}
+                            size="small"
+                            className="!bg-red-500 hover:!bg-red-600"
+                        >
+                            Cerrar Turno
+                        </Button>
+                    </div>
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center space-y-4">
@@ -160,28 +237,16 @@ function TurnoModule() {
                         <form onSubmit={handleAbrirTurno} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Isla asignada</label>
-                                <select
-                                    value={abrirDatos.isla}
-                                    onChange={(e) => setAbrirDatos({ ...abrirDatos, isla: e.target.value })}
-                                    className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                    required
-                                >
+                                <select value={abrirDatos.isla} onChange={(e) => setAbrirDatos({ ...abrirDatos, isla: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
                                     <option value="">Selecciona una isla</option>
                                     {islas.map(i => (
-                                        <option key={i.id} value={i.id}>
-                                            Isla {i.numero} {i.descripcion ? `- ${i.descripcion}` : ''}
-                                        </option>
+                                        <option key={i.id} value={i.id}>Isla {i.numero} {i.descripcion ? `- ${i.descripcion}` : ''}</option>
                                     ))}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Horario de turno</label>
-                                <select
-                                    value={abrirDatos.horario}
-                                    onChange={(e) => setAbrirDatos({ ...abrirDatos, horario: e.target.value })}
-                                    className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                    required
-                                >
+                                <select value={abrirDatos.horario} onChange={(e) => setAbrirDatos({ ...abrirDatos, horario: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
                                     <option value="">Selecciona un horario</option>
                                     <option value="MANANA">Mañana 06:00 - 14:00</option>
                                     <option value="TARDE">Tarde 14:00 - 22:00</option>
@@ -197,11 +262,47 @@ function TurnoModule() {
                 </div>
             )}
 
+            {showReporteModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-xl font-bold mb-1 text-red-600">⚠️ Reportar Problema</h3>
+                        <p className="text-xs text-gray-400 mb-4">El gerente será notificado del problema reportado.</p>
+                        <form onSubmit={handleReportarProblema} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Lado afectado</label>
+                                <select value={reporteData.lado_id} onChange={e => setReporteData({ ...reporteData, lado_id: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
+                                    <option value="">Selecciona el lado</option>
+                                    {ladosTurno.map(lado => (
+                                        <option key={lado.id} value={lado.id}>Isla {turno.isla_numero} - Lado {lado.lado}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Descripción del problema</label>
+                                <textarea value={reporteData.descripcion} onChange={e => setReporteData({ ...reporteData, descripcion: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={3} placeholder="Describe el problema..." required />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <Button type="submit" loading={loadingReporte} className="!bg-red-500 hover:!bg-red-600">Reportar</Button>
+                                <Button type="button" onClick={() => setShowReporteModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {showCerrarModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                         <h3 className="text-xl font-bold mb-4">Cerrar Turno</h3>
                         <form onSubmit={handleCerrarTurno} className="space-y-4">
+
+                            {/*  Banner total recaudado */}
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                                <p className="text-xs text-gray-500 uppercase font-semibold">Total recaudado en ventas</p>
+                                <p className="text-2xl font-bold text-emerald-600">Bs. {totalRecaudado}</p>
+                                <p className="text-xs text-gray-400 mt-1">Este monto fue pre-llenado automáticamente</p>
+                            </div>
+
                             <Input
                                 label="Monto final en caja"
                                 type="number"
@@ -212,13 +313,7 @@ function TurnoModule() {
                             />
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Observaciones</label>
-                                <textarea
-                                    value={cierreDatos.observaciones}
-                                    onChange={(e) => setCierreDatos({ ...cierreDatos, observaciones: e.target.value })}
-                                    className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                    rows={3}
-                                    placeholder="Novedades del turno..."
-                                />
+                                <textarea value={cierreDatos.observaciones} onChange={(e) => setCierreDatos({ ...cierreDatos, observaciones: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={3} placeholder="Novedades del turno..." />
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <Button type="submit" loading={loading} className="!bg-red-500 hover:!bg-red-600">Confirmar Cierre</Button>
@@ -238,49 +333,57 @@ function RegistrarVentaModule() {
     const [tiposCombustible, setTiposCombustible] = useState([]);
     const [clientes, setClientes] = useState([]);
     const [ventas, setVentas] = useState([]);
+
+    // --- NUEVO ESTADO PARA EL CONTEXTO IoT/LPR ---
+    const [contextoPista, setContextoPista] = useState(null);
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [exito, setExito] = useState(null);
     const [mostrarPasarela, setMostrarPasarela] = useState(false);
     const [showModal, setShowModal] = useState(false);
 
-    const abrirModal = () => {
-        setPaso('placa');
-        setPlacaInput('');
-        setPlacaError('');
-        setClienteEncontrado(null);
-        setFormNuevoCliente({ nombre: '', nit: '', telefono: '', placa: '', marca: '', modelo: '', color: '' });
-        setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
-        setLitrosCalculados(null);
-        setShowModal(true);
-    };
-    const [paso, setPaso] = useState('placa'); // 'placa' | 'nuevo_cliente' | 'venta'
+    const [paso, setPaso] = useState('placa');
     const [placaInput, setPlacaInput] = useState('');
     const [placaLoading, setPlacaLoading] = useState(false);
     const [placaError, setPlacaError] = useState('');
     const [clienteEncontrado, setClienteEncontrado] = useState(null);
-    const [formNuevoCliente, setFormNuevoCliente] = useState({
-        nombre: '', ci: '', nit: '', telefono: '', placa: '',
-        marca: '', modelo: '', color: ''
-    });
+    const [formNuevoCliente, setFormNuevoCliente] = useState({ nombre: '', ci: '', nit: '', telefono: '', placa: '', marca: '', modelo: '', color: '' });
     const [nuevoClienteLoading, setNuevoClienteLoading] = useState(false);
     const [nuevoClienteError, setNuevoClienteError] = useState('');
 
     const [showTicketModal, setShowTicketModal] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState(null);
 
-    const [formData, setFormData] = useState({
-        lado_id: '',
-        tipo_combustible_id: '',
-        monto_bs: '',
-        es_lleno: false,
-        metodo_pago: 'EFECTIVO',
-        cliente_id: ''
-    });
+    const [formData, setFormData] = useState({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
     const [litrosCalculados, setLitrosCalculados] = useState(null);
+
+    const abrirModal = () => {
+        setPaso('placa');
+        setPlacaInput('');
+        setPlacaError('');
+        setClienteEncontrado(null);
+        setFormNuevoCliente({ nombre: '', ci: '', nit: '', telefono: '', placa: '', marca: '', modelo: '', color: '' });
+        setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
+        setLitrosCalculados(null);
+        setShowModal(true);
+    };
+
     useEffect(() => {
-        cargarDatos();
+        cargarDatosGlobales();
     }, []);
+
+    // --- NUEVO EFECTO: Smart Polling para escuchar la cámara LPR ---
+    useEffect(() => {
+        if (!turno) return; // Solo escuchar si el turno está cargado
+
+        cargarDatosPista();
+        const ejecutarPolling = () => {
+            if (!document.hidden) cargarDatosPista();
+        };
+        const intervalId = setInterval(ejecutarPolling, 15000);
+        return () => clearInterval(intervalId);
+    }, [turno]);
 
     useEffect(() => {
         calcularLitros();
@@ -300,7 +403,7 @@ function RegistrarVentaModule() {
         }
     };
 
-    const cargarDatos = async () => {
+    const cargarDatosGlobales = async () => {
         setLoading(true);
         try {
             const [turnoRes, tiposRes, clientesRes, ventasRes] = await Promise.all([
@@ -325,81 +428,67 @@ function RegistrarVentaModule() {
             const ventasData = Array.isArray(ventasRes.data) ? ventasRes.data : ventasRes.data.ventas || [];
             setVentas(ventasData);
         } catch (err) {
-            console.error('Error cargando datos:', err);
+            console.error('Error cargando datos globales:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (formData.metodo_pago === 'QR' || formData.metodo_pago === 'TARJETA') {
-        setShowModal(false);
-        setMostrarPasarela(true);
-        return;
-    }
-    await ejecutarRegistroVenta();
-
+    // --- NUEVA FUNCIÓN: Obtener estado real de los surtidores (CU 14) ---
+    const cargarDatosPista = async () => {
         try {
-            // Validar que turno existe
-            if (!turno || !turno.id) {
-                setError('No hay un turno activo. Por favor, abre un turno primero.');
-                setLoading(false);
-                return;
-            }
-
-            const payload = {
-                turno_id: turno.id,  // ✅ AGREGADO: ID del turno actual
-                lado_id: parseInt(formData.lado_id),
-                tipo_combustible_id: parseInt(formData.tipo_combustible_id),
-                metodo_pago: formData.metodo_pago,
-                es_lleno: formData.es_lleno,
-            };
-            
-            // Validar que los IDs sean números válidos
-            if (isNaN(payload.lado_id) || isNaN(payload.tipo_combustible_id)) {
-                setError('Selecciona lado y tipo de combustible válidos');
-                setLoading(false);
-                return;
-            }
-
-            if (!formData.es_lleno) {
-                payload.monto_bs = parseFloat(formData.monto_bs);
-                if (isNaN(payload.monto_bs) || payload.monto_bs <= 0) {
-                    setError('Ingresa un monto válido');
-                    setLoading(false);
-                    return;
-                }
-            }
-            
-            if (formData.cliente_id) {
-                payload.cliente_id = parseInt(formData.cliente_id);
-            }
-
-            // 🔍 DEBUG: Ver qué se envía
-            console.log('📤 Payload enviado:', payload);
-
-            await ventasService.registrar(payload);
-            setExito('Venta registrada correctamente');
-            setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
-            setLitrosCalculados(null);
-            setShowModal(false);
-            await cargarDatos();
+            const res = await apiClient.get('/monitoreo/surtidores/vista_operador/');
+            setContextoPista(res.data);
         } catch (err) {
-            console.error('❌ Error en registro:', err);
-            const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
-            console.error('📥 Respuesta del servidor:', err.response?.data);
-            setError(errorMsg);
-        } finally {
-            setLoading(false);
+            console.error("Error al cargar pista LPR", err);
         }
+    };
+
+    // --- NUEVA FUNCIÓN: Consolidar venta remota (CU 17) ---
+    const handleProcederDespachoRemoto = async (ladoId) => {
+        try {
+            // Simulamos 53.47 litros desde el hardware
+            await apiClient.post('/monitoreo/surtidores/finalizar_despacho/', {
+                lado_id: ladoId,
+                volumen_litros: 53.47
+            });
+            setExito('Despacho remoto finalizado con éxito.');
+            await cargarDatosGlobales(); // Refrescar tabla de ventas
+            await cargarDatosPista(); // Limpiar alerta
+            setTimeout(() => setExito(null), 4000);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Error al consolidar despacho remoto');
+        }
+    };
+
+    const handleRechazarOrdenRemota = async (ladoId) => {
+        try {
+            await apiClient.post('/monitoreo/surtidores/cambiar_estado/', {
+                lado_id: ladoId,
+                estado: 'ACTIVO',
+                descripcion: 'Rechazado por el operador en pista.'
+            });
+            await cargarDatosPista();
+        } catch {
+            setError('Error al cancelar la orden');
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (formData.metodo_pago === 'QR' || formData.metodo_pago === 'TARJETA') {
+            setShowModal(false);
+            setMostrarPasarela(true);
+            return;
+        }
+        await ejecutarRegistroVenta();
     };
 
     const handleAnular = async (id) => {
         if (!confirm('¿Está seguro de anular esta venta?')) return;
         try {
             await ventasService.anular(id);
-            await cargarDatos();
+            await cargarDatosGlobales();
         } catch (err) {
             setError('Error al anular la venta');
         }
@@ -419,17 +508,6 @@ function RegistrarVentaModule() {
         }
     };
 
-    const totalTurno = ventas.reduce((acc, v) => acc + parseFloat(v.total), 0).toFixed(2);
-
-    if (!turno || !turno.id) {
-        return (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center space-y-3">
-                <AlertCircle className="w-10 h-10 text-orange-400 mx-auto" />
-                <h3 className="font-bold text-slate-900 text-lg">Sin turno activo</h3>
-                <p className="text-gray-500 text-sm">Debes abrir un turno antes de registrar ventas</p>
-            </div>
-        );
-    }
     const buscarPlaca = async () => {
         if (!placaInput.trim()) return;
         setPlacaLoading(true);
@@ -438,9 +516,23 @@ function RegistrarVentaModule() {
             const res = await vehiculosService.buscarPorPlaca(placaInput.trim());
             if (res.data.encontrado) {
                 const v = res.data.vehiculo;
-                setClienteEncontrado(v);
-                setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
-                setPaso('venta');
+                if (!res.data.registrado_en_empresa) {
+                    const confirmar = confirm(`El vehículo ${v.placa} pertenece a ${v.cliente_nombre}.\n¿Deseas registrar este cliente en tu empresa?`);
+                    if (confirmar) {
+                        await vehiculosService.registrarEnEmpresa(v.cliente_id);
+                        setClienteEncontrado(v);
+                        setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
+                        setPaso('venta');
+                    } else {
+                        setClienteEncontrado(v);
+                        setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
+                        setPaso('venta');
+                    }
+                } else {
+                    setClienteEncontrado(v);
+                    setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
+                    setPaso('venta');
+                }
             } else {
                 setFormNuevoCliente(prev => ({ ...prev, placa: placaInput.trim().toUpperCase() }));
                 setPaso('nuevo_cliente');
@@ -459,12 +551,15 @@ function RegistrarVentaModule() {
             const res = await vehiculosService.registrarClienteVehiculo(formNuevoCliente);
             const v = res.data.vehiculo;
 
-            // ✅ Mostrar credenciales si fueron creadas
+            //  Mostrar credenciales si fueron creadas
             if (res.data.credenciales && !res.data.credenciales.error) {
-                const { email, password } = res.data.credenciales;
-                alert(`✅ Cliente registrado\n\nCredenciales para app móvil:\nEmail: ${email}\nContraseña: ${password}\n\nInforme al cliente estas credenciales.`);
+                if (res.data.credenciales.ya_existia) {
+                    alert(`✅ Cliente registrado en esta empresa.\n\nEste cliente ya tiene credenciales:\nEmail: ${res.data.credenciales.email}\n\nPuede usar sus credenciales existentes.`);
+                } else {
+                    const { email, password } = res.data.credenciales;
+                    alert(`✅ Cliente registrado\n\nCredenciales para app móvil:\nEmail: ${email}\nContraseña: ${password}\n\nInforme al cliente estas credenciales.`);
+                }
             }
-
             setClienteEncontrado(v);
             setFormData(prev => ({ ...prev, cliente_id: v.cliente_id }));
             setPaso('venta');
@@ -476,44 +571,61 @@ function RegistrarVentaModule() {
             setNuevoClienteLoading(false);
         }
     };
+
     const ejecutarRegistroVenta = async () => {
-    setLoading(true);
-    setError(null);
-    setExito(null);
-    try {
-        if (!turno || !turno.id) {
-            setError('No hay un turno activo.');
+        setLoading(true);
+        setError(null);
+        setExito(null);
+        try {
+            if (!turno || !turno.id) {
+                setError('No hay un turno activo.');
+                setLoading(false);
+                return;
+            }
+            const payload = {
+                turno_id: turno.id,
+                lado_id: parseInt(formData.lado_id),
+                tipo_combustible_id: parseInt(formData.tipo_combustible_id),
+                metodo_pago: formData.metodo_pago,
+                es_lleno: formData.es_lleno,
+            };
+            if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
+            if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
+            await ventasService.registrar(payload);
+            setExito('Venta registrada correctamente');
+            setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
+            setLitrosCalculados(null);
+            setShowModal(false);
+            await cargarDatosGlobales();
+        } catch (err) {
+            const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
+            setError(errorMsg);
+        } finally {
             setLoading(false);
-            return;
         }
-        const payload = {
-            turno_id: turno.id,
-            lado_id: parseInt(formData.lado_id),
-            tipo_combustible_id: parseInt(formData.tipo_combustible_id),
-            metodo_pago: formData.metodo_pago,
-            es_lleno: formData.es_lleno,
-        };
-        if (!formData.es_lleno) payload.monto_bs = parseFloat(formData.monto_bs);
-        if (formData.cliente_id) payload.cliente_id = parseInt(formData.cliente_id);
-        await ventasService.registrar(payload);
-        setExito('Venta registrada correctamente');
-        setFormData({ lado_id: '', tipo_combustible_id: '', monto_bs: '', es_lleno: false, metodo_pago: 'EFECTIVO', cliente_id: '' });
-        setLitrosCalculados(null);
-        setShowModal(false);
-        await cargarDatos();
-    } catch (err) {
-        const errorMsg = err.response?.data?.error || err.response?.data?.detail || 'Error al registrar la venta';
-        setError(errorMsg);
-    } finally {
-        setLoading(false);
+    };
+
+    const totalTurno = ventas.reduce((acc, v) => acc + parseFloat(v.total), 0).toFixed(2);
+
+    // Verificamos si algún lado está en estado remoto
+    const ladoConAlertaRemota = contextoPista?.lados?.find(l => l.estado === 'AUTORIZADO_REMOTO');
+
+    if (!turno || !turno.id) {
+        return (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center space-y-3">
+                <AlertCircle className="w-10 h-10 text-orange-400 mx-auto" />
+                <h3 className="font-bold text-slate-900 text-lg">Sin turno activo</h3>
+                <p className="text-gray-500 text-sm">Debes abrir un turno en la pestaña "Turno" antes de registrar ventas</p>
+            </div>
+        );
     }
-};
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Registrar Venta</h2>
                 <Button onClick={() => abrirModal()} size="small" className="!bg-blue-600 hover:!bg-blue-700">
-                    Nueva Venta
+                    Nueva Venta Manual
                 </Button>
             </div>
 
@@ -527,6 +639,59 @@ function RegistrarVentaModule() {
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                     <p className="text-emerald-700 text-sm">{exito}</p>
+                </div>
+            )}
+
+            {/* --- CONTENEDOR NUEVO: ALERTA DE DESPACHO REMOTO LPR --- */}
+            {ladoConAlertaRemota && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 shadow-xs relative overflow-hidden animate-flotar-suave">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                        <div className="flex items-start space-x-4">
+                            <div className="bg-blue-600 text-white p-3.5 rounded-xl flex items-center justify-center shadow-md">
+                                <ScanFace className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <div className="flex items-center space-x-2">
+                                    <span className="bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase border border-blue-200">Alerta Despacho Remoto</span>
+                                </div>
+                                <h2 className="text-lg font-black mt-1 text-slate-900">Orden Autorizada desde la Nube</h2>
+                                <p className="text-gray-500 text-xs sm:text-sm">
+                                    La cámara LPR detectó el vehículo asociado a una compra online.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-3 rounded-xl border border-blue-100 flex gap-4 text-center shadow-2xs">
+                            <div>
+                                <span className="text-[9px] text-gray-400 block uppercase font-bold">Ubicación</span>
+                                <span className="text-md font-black text-blue-600">Lado {ladoConAlertaRemota.lado}</span>
+                            </div>
+                            <div className="border-l border-gray-200"></div>
+                            <div>
+                                <span className="text-[9px] text-gray-400 block uppercase font-bold">Placa Auto</span>
+                                <span className="text-md font-black bg-slate-100 text-slate-800 px-2 rounded font-mono">{ladoConAlertaRemota.placa_activa}</span>
+                            </div>
+                            <div className="border-l border-gray-200"></div>
+                            <div>
+                                <span className="text-[9px] text-gray-400 block uppercase font-bold">Monto Prepago</span>
+                                <span className="text-md font-black text-emerald-600">Bs. {ladoConAlertaRemota.monto_autorizado}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-blue-200/50 flex flex-wrap gap-3 items-center justify-between">
+                        <p className="text-xs text-blue-700 flex items-center gap-1 font-semibold">
+                            👉 Verifique la placa del vehículo, introduzca la manguera y presione el gatillo.
+                        </p>
+                        <div className="flex space-x-2">
+                            <button onClick={() => handleRechazarOrdenRemota(ladoConAlertaRemota.id)} className="bg-white hover:bg-gray-50 border border-gray-300 px-4 py-1.5 rounded-xl text-xs font-bold text-gray-700 transition-colors">
+                                Rechazar
+                            </button>
+                            <button onClick={() => handleProcederDespachoRemoto(ladoConAlertaRemota.id)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-1.5 rounded-xl text-xs shadow-md">
+                                Despacho Finalizado ⛽
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -614,47 +779,24 @@ function RegistrarVentaModule() {
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-
-                        {/* PASO 1 — Buscar placa */}
                         {paso === 'placa' && (
                             <>
                                 <h3 className="text-xl font-bold mb-1">Nueva Venta — Isla {turno.isla_numero}</h3>
                                 <p className="text-sm text-gray-500 mb-5">Ingresa la placa del vehículo para identificar al cliente</p>
                                 <div className="space-y-4">
-                                    <Input
-                                        label="Placa del vehículo"
-                                        value={placaInput}
-                                        onChange={(e) => setPlacaInput(e.target.value.toUpperCase())}
-                                        placeholder="Ej: 2345-ABC"
-                                        onKeyDown={(e) => e.key === 'Enter' && buscarPlaca()}
-                                        required
-                                    />
-                                    {placaError && (
-                                        <p className="text-xs text-red-500">{placaError}</p>
-                                    )}
+                                    <Input label="Placa del vehículo" value={placaInput} onChange={(e) => setPlacaInput(e.target.value.toUpperCase())} placeholder="Ej: 2345-ABC" onKeyDown={(e) => e.key === 'Enter' && buscarPlaca()} required />
+                                    {placaError && <p className="text-xs text-red-500">{placaError}</p>}
                                     <div className="flex gap-3 pt-1">
-                                        <Button onClick={buscarPlaca} loading={placaLoading}>
-                                            Buscar
-                                        </Button>
-                                        <Button
-                                            onClick={() => setShowModal(false)}
-                                            className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
-                                        >
-                                            Cancelar
-                                        </Button>
+                                        <Button onClick={buscarPlaca} loading={placaLoading}>Buscar</Button>
+                                        <Button onClick={() => setShowModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPaso('venta')}
-                                        className="text-xs text-gray-400 hover:text-gray-600 underline w-full text-center pt-1"
-                                    >
+                                    <button type="button" onClick={() => setPaso('venta')} className="text-xs text-gray-400 hover:text-gray-600 underline w-full text-center pt-1">
                                         Continuar sin identificar vehículo
                                     </button>
                                 </div>
                             </>
                         )}
 
-                        {/* PASO 2 — Registrar cliente nuevo */}
                         {paso === 'nuevo_cliente' && (
                             <>
                                 <h3 className="text-xl font-bold mb-1">Vehículo no encontrado</h3>
@@ -662,77 +804,27 @@ function RegistrarVentaModule() {
                                     Placa <span className="font-semibold text-slate-800">{formNuevoCliente.placa}</span> no está registrada. Completa los datos para registrar al cliente.
                                 </p>
                                 <div className="space-y-3">
-                                    <Input
-                                        label="Nombre completo"
-                                        value={formNuevoCliente.nombre}
-                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nombre: e.target.value })}
-                                        placeholder="Ej: Juan Pérez"
-                                        required
-                                    />
-                                    {/* ✅ NUEVO CAMPO CI */}
-                                    <Input
-                                        label="Carnet de identidad (CI)"
-                                        value={formNuevoCliente.ci}
-                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, ci: e.target.value })}
-                                        placeholder="Ej: 7543112"
-                                        required
-                                    />
-                                    <Input
-                                        label="NIT (opcional)"
-                                        value={formNuevoCliente.nit}
-                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nit: e.target.value })}
-                                        placeholder="Ej: 12345678"
-                                    />
-                                    <Input
-                                        label="Teléfono (opcional)"
-                                        value={formNuevoCliente.telefono}
-                                        onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, telefono: e.target.value })}
-                                        placeholder="Ej: 70012345"
-                                    />
+                                    <Input label="Nombre completo" value={formNuevoCliente.nombre} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nombre: e.target.value })} placeholder="Ej: Juan Pérez" required />
+                                    <Input label="Carnet de identidad (CI)" value={formNuevoCliente.ci} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, ci: e.target.value })} placeholder="Ej: 7543112" required />
+                                    <Input label="NIT (opcional)" value={formNuevoCliente.nit} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, nit: e.target.value })} placeholder="Ej: 12345678" />
+                                    <Input label="Teléfono (opcional)" value={formNuevoCliente.telefono} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, telefono: e.target.value })} placeholder="Ej: 70012345" />
                                     <div className="grid grid-cols-3 gap-2">
-                                        <Input
-                                            label="Marca"
-                                            value={formNuevoCliente.marca}
-                                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, marca: e.target.value })}
-                                            placeholder="Toyota"
-                                        />
-                                        <Input
-                                            label="Modelo"
-                                            value={formNuevoCliente.modelo}
-                                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, modelo: e.target.value })}
-                                            placeholder="Corolla"
-                                        />
-                                        <Input
-                                            label="Color"
-                                            value={formNuevoCliente.color}
-                                            onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, color: e.target.value })}
-                                            placeholder="Blanco"
-                                        />
+                                        <Input label="Marca" value={formNuevoCliente.marca} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, marca: e.target.value })} placeholder="Toyota" />
+                                        <Input label="Modelo" value={formNuevoCliente.modelo} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, modelo: e.target.value })} placeholder="Corolla" />
+                                        <Input label="Color" value={formNuevoCliente.color} onChange={(e) => setFormNuevoCliente({ ...formNuevoCliente, color: e.target.value })} placeholder="Blanco" />
                                     </div>
-                                    {nuevoClienteError && (
-                                        <p className="text-xs text-red-500">{nuevoClienteError}</p>
-                                    )}
+                                    {nuevoClienteError && <p className="text-xs text-red-500">{nuevoClienteError}</p>}
                                     <div className="flex gap-3 pt-1">
-                                        <Button onClick={registrarNuevoCliente} loading={nuevoClienteLoading}>
-                                            Registrar y continuar
-                                        </Button>
-                                        <Button
-                                            onClick={() => setPaso('placa')}
-                                            className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
-                                        >
-                                            Volver
-                                        </Button>
+                                        <Button onClick={registrarNuevoCliente} loading={nuevoClienteLoading}>Registrar y continuar</Button>
+                                        <Button onClick={() => setPaso('placa')} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Volver</Button>
                                     </div>
                                 </div>
                             </>
                         )}
 
-                        {/* PASO 3 — Formulario de venta */}
                         {paso === 'venta' && (
                             <>
                                 <h3 className="text-xl font-bold mb-1">Nueva Venta — Isla {turno.isla_numero}</h3>
-
-                                {/* Banner cliente identificado */}
                                 {clienteEncontrado && (
                                     <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
                                         <div>
@@ -743,79 +835,34 @@ function RegistrarVentaModule() {
                                                 {clienteEncontrado.cliente_telefono ? ` · ${clienteEncontrado.cliente_telefono}` : ''}
                                             </p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setClienteEncontrado(null);
-                                                setFormData(prev => ({ ...prev, cliente_id: '' }));
-                                                setPaso('placa');
-                                            }}
-                                            className="text-xs text-gray-400 hover:text-gray-600 underline"
-                                        >
+                                        <button type="button" onClick={() => { setClienteEncontrado(null); setFormData(prev => ({ ...prev, cliente_id: '' })); setPaso('placa'); }} className="text-xs text-gray-400 hover:text-gray-600 underline">
                                             Cambiar
                                         </button>
                                     </div>
                                 )}
-
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Lado</label>
-                                        <select
-                                            value={formData.lado_id}
-                                            onChange={(e) => setFormData({ ...formData, lado_id: e.target.value })}
-                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                            required
-                                        >
+                                        <select value={formData.lado_id} onChange={(e) => setFormData({ ...formData, lado_id: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
                                             <option value="">Selecciona el lado</option>
-                                            {lados.map(l => (
-                                                <option key={l.id} value={l.id}>{l.nombre_completo}</option>
-                                            ))}
+                                            {lados.map(l => <option key={l.id} value={l.id}>{l.nombre_completo}</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Tipo de combustible</label>
-                                        <select
-                                            value={formData.tipo_combustible_id}
-                                            onChange={(e) => setFormData({ ...formData, tipo_combustible_id: e.target.value })}
-                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                            required
-                                        >
+                                        <select value={formData.tipo_combustible_id} onChange={(e) => setFormData({ ...formData, tipo_combustible_id: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
                                             <option value="">Selecciona el combustible</option>
-                                            {tiposCombustible.map(t => (
-                                                <option key={t.id} value={t.id}>{t.tipo_display} - Bs. {t.precio_litro}/Lt</option>
-                                            ))}
+                                            {tiposCombustible.map(t => <option key={t.id} value={t.id}>{t.tipo_display} - Bs. {t.precio_litro}/Lt</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Tipo de despacho</label>
                                         <div className="flex gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, es_lleno: false, monto_bs: '' })}
-                                                className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${!formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                                            >
-                                                Por monto (Bs)
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, es_lleno: true, monto_bs: '' })}
-                                                className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                                            >
-                                                Lleno
-                                            </button>
+                                            <button type="button" onClick={() => setFormData({ ...formData, es_lleno: false, monto_bs: '' })} className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${!formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>Por monto (Bs)</button>
+                                            <button type="button" onClick={() => setFormData({ ...formData, es_lleno: true, monto_bs: '' })} className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${formData.es_lleno ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>Lleno</button>
                                         </div>
                                     </div>
-                                    {!formData.es_lleno && (
-                                        <Input
-                                            label="Monto en Bs"
-                                            type="number"
-                                            step="0.01"
-                                            value={formData.monto_bs}
-                                            onChange={(e) => setFormData({ ...formData, monto_bs: e.target.value })}
-                                            required={!formData.es_lleno}
-                                            placeholder="Ej: 100.00"
-                                        />
-                                    )}
+                                    {!formData.es_lleno && <Input label="Monto en Bs" type="number" step="0.01" value={formData.monto_bs} onChange={(e) => setFormData({ ...formData, monto_bs: e.target.value })} required={!formData.es_lleno} placeholder="Ej: 100.00" />}
                                     {!formData.es_lleno && litrosCalculados && (
                                         <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1">
                                             <p className="text-sm text-emerald-700 font-semibold">Litros a despachar: {litrosCalculados} Lt</p>
@@ -829,47 +876,25 @@ function RegistrarVentaModule() {
                                     )}
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Método de pago</label>
-                                        <select
-                                            value={formData.metodo_pago}
-                                            onChange={(e) => setFormData({ ...formData, metodo_pago: e.target.value })}
-                                            className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                            required
-                                        >
+                                        <select value={formData.metodo_pago} onChange={(e) => setFormData({ ...formData, metodo_pago: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
                                             <option value="EFECTIVO">Efectivo</option>
                                             <option value="TARJETA">Tarjeta</option>
                                             <option value="QR">Pago QR</option>
                                             <option value="CREDITO_FLEET">Crédito Fleet</option>
                                         </select>
                                     </div>
-
-                                    {/* Cliente — solo si no vino de búsqueda de placa */}
                                     {!clienteEncontrado && (
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Cliente (opcional)</label>
-                                            <select
-                                                value={formData.cliente_id}
-                                                onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
-                                                className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                            >
+                                            <select value={formData.cliente_id} onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                                                 <option value="">Sin cliente</option>
-                                                {clientes.map(c => (
-                                                    <option key={c.id} value={c.id}>
-                                                        {c.nombre} {c.nit ? `- NIT: ${c.nit}` : ''}
-                                                    </option>
-                                                ))}
+                                                {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.nit ? `- NIT: ${c.nit}` : ''}</option>)}
                                             </select>
                                         </div>
                                     )}
-
                                     <div className="flex gap-3 pt-2">
                                         <Button type="submit" loading={loading}>Registrar Venta</Button>
-                                        <Button
-                                            type="button"
-                                            onClick={() => setShowModal(false)}
-                                            className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300"
-                                        >
-                                            Cancelar
-                                        </Button>
+                                        <Button type="button" onClick={() => setShowModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
                                     </div>
                                 </form>
                             </>
@@ -877,27 +902,14 @@ function RegistrarVentaModule() {
                     </div>
                 </div>
             )}
+
             {mostrarPasarela && (
-    <PasarelaPagoModal
-        metodo={formData.metodo_pago}
-        monto={formData.monto_bs}
-        onConfirmar={() => {
-            setMostrarPasarela(false);
-            ejecutarRegistroVenta();
-        }}
-        onCancelar={() => setMostrarPasarela(false)}
-    />
-)}
-            {showTicketModal && selectedTicket && (
-                <TicketModal 
-                    ticket={selectedTicket} 
-                    onClose={() => {
-                        setShowTicketModal(false);
-                        setSelectedTicket(null);
-                    }} 
-                />
+                <PasarelaPagoModal metodo={formData.metodo_pago} monto={formData.monto_bs} onConfirmar={() => { setMostrarPasarela(false); ejecutarRegistroVenta(); }} onCancelar={() => setMostrarPasarela(false)} />
             )}
 
+            {showTicketModal && selectedTicket && (
+                <TicketModal ticket={selectedTicket} onClose={() => { setShowTicketModal(false); setSelectedTicket(null); }} />
+            )}
         </div>
     );
 }
@@ -1068,8 +1080,8 @@ function DespachoPrepagoModule() {
                                 ))}
                             </select>
                         </div>
-                        <Button 
-                            onClick={handleDespachar} 
+                        <Button
+                            onClick={handleDespachar}
                             loading={loading}
                             className="w-full !bg-emerald-600 hover:!bg-emerald-700"
                         >
@@ -1124,8 +1136,8 @@ function DespachoPrepagoModule() {
                                             </td>
                                             <td className="px-4 py-3 flex items-center gap-2">
                                                 {orden.estado === 'PAGADO' && (
-                                                    <Button 
-                                                        size="small" 
+                                                    <Button
+                                                        size="small"
                                                         onClick={() => {
                                                             setNumeroOrden(orden.numero_orden);
                                                             validarOrdenDirecta(orden.numero_orden);

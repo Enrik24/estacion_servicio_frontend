@@ -54,6 +54,7 @@ export const turnosService = {
 export const vehiculosService = {
     buscarPorPlaca: (placa) => apiClient.get(`/vehiculos/buscar_placa/?placa=${placa}`),
     registrarClienteVehiculo: (data) => apiClient.post('/vehiculos/registrar_cliente_vehiculo/', data),
+    registrarEnEmpresa: (clienteId) => apiClient.post('/vehiculos/registrar_en_empresa/', { cliente_id: clienteId }),
 };
 
 export const prepagoOperadorService = {

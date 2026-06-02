@@ -10,7 +10,7 @@ const ProfilePage = () => {
   const [formData, setFormData] = useState({
     nombre: '',
     password: '',
-    nit: '',
+    nit_ci: '',
     telefono: '',
     placa: '',
     marca: '',
@@ -19,25 +19,53 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
+    const fetchProfile = async () => {
       try {
-        const parsedUser = JSON.parse(userStr);
-        setUser(parsedUser);
-        setFormData(prev => ({
-          ...prev,
-          nombre: parsedUser.nombre || '',
-          nit: parsedUser.nit || '',
-          telefono: parsedUser.telefono || '',
-          placa: parsedUser.placa || '',
-          marca: parsedUser.marca || '',
-          modelo: parsedUser.modelo || '',
-          color: parsedUser.color || ''
-        }));
+        const response = await clientesService.getProfile();
+        if (response.data) {
+          const profileData = response.data;
+          setUser(profileData);
+          setFormData(prev => ({
+            ...prev,
+            nombre: profileData.nombre || '',
+            nit_ci: profileData.nit_ci || '',
+            telefono: profileData.telefono || '',
+            placa: profileData.placa || '',
+            marca: profileData.marca || '',
+            modelo: profileData.modelo || '',
+            color: profileData.color || ''
+          }));
+          // Sincronizar con localStorage
+          const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+          localStorage.setItem('user', JSON.stringify({ ...localUser, ...profileData }));
+        }
       } catch (e) {
-        console.error('Error parsing user data', e);
+        console.error('Error fetching profile data', e);
+        // Fallback a localStorage si falla
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          try {
+            const parsedUser = JSON.parse(userStr);
+            setUser(parsedUser);
+            setFormData(prev => {
+              const pData = parsedUser.cliente || parsedUser.perfil || parsedUser;
+              return {
+                ...prev,
+                nombre: parsedUser.nombre || pData.nombre || '',
+                nit_ci: parsedUser.nit_ci || pData.nit_ci || parsedUser.nit || pData.nit || '',
+                telefono: parsedUser.telefono || pData.telefono || '',
+                placa: parsedUser.placa || pData.placa || '',
+                marca: parsedUser.marca || pData.marca || '',
+                modelo: parsedUser.modelo || pData.modelo || '',
+                color: parsedUser.color || pData.color || ''
+              };
+            });
+          } catch (err) {}
+        }
       }
-    }
+    };
+    
+    fetchProfile();
   }, []);
 
   const updateUser = (updatedData) => {
@@ -73,7 +101,7 @@ const ProfilePage = () => {
         delete dataToSubmit.password;
       }
       
-      const response = await clientesService.completarPerfil(dataToSubmit);
+      const response = await clientesService.updateProfile(dataToSubmit);
       
       if (response.data) {
         Swal.fire({
@@ -82,14 +110,15 @@ const ProfilePage = () => {
           text: 'Tu perfil ha sido actualizado correctamente.',
           confirmButtonColor: '#10b981'
         });
+        
         // Actualizar contexto si el backend devuelve los datos actualizados
-        if (response.data.user) {
-           updateUser(response.data.user);
+        if (response.data.id || response.data.user) {
+           updateUser(response.data.user || response.data);
         } else {
            // update with formData assuming success
            updateUser({
              nombre: formData.nombre,
-             nit: formData.nit,
+             nit_ci: formData.nit_ci,
              telefono: formData.telefono,
              placa: formData.placa,
              marca: formData.marca,
@@ -198,8 +227,8 @@ const ProfilePage = () => {
                   </div>
                   <input
                     type="text"
-                    name="nit"
-                    value={formData.nit}
+                    name="nit_ci"
+                    value={formData.nit_ci}
                     onChange={handleChange}
                     className="pl-10 block w-full rounded-lg border-slate-300 bg-slate-50 border p-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Ej. 1234567"

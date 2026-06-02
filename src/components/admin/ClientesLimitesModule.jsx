@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { clientesService, limitesConsumoService, usuariosService } from '../../services/api';
-
+import apiClient from '../../services/api';
 const LIMITE_FORM_INICIAL = {
   cliente_id: '',
   limite_diario: '',
@@ -27,24 +27,21 @@ function ClientesLimitesModule() {
   }, []);
 
   const cargarDatos = async () => {
-    setLoading(true);
-    try {
-      const [usuariosRes, limitesRes] = await Promise.all([
-        usuariosService.getAll(),
-        limitesConsumoService.getAll(),
-      ]);
-      const usuarios = Array.isArray(usuariosRes.data) ? usuariosRes.data : usuariosRes.data.results || [];
-      const soloClientes = usuarios.filter((usuario) =>
-        (usuario.roles_detalle || []).some((rol) => (rol.nombre || '').toLowerCase() === 'cliente')
-      );
-      setClientes(soloClientes);
-      setLimites(Array.isArray(limitesRes.data) ? limitesRes.data : limitesRes.data.results || []);
-    } catch (error) {
-      alert(`Error al cargar clientes/límites: ${error.response?.data?.detail || error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    const [clientesRes, limitesRes] = await Promise.all([
+      clientesService.getAll(),
+      limitesConsumoService.getAll(),
+    ]);
+    const clientes = Array.isArray(clientesRes.data) ? clientesRes.data : clientesRes.data.results || [];
+    setClientes(clientes);
+    setLimites(Array.isArray(limitesRes.data) ? limitesRes.data : limitesRes.data.results || []);
+  } catch (error) {
+    alert(`Error al cargar clientes/límites: ${error.response?.data?.detail || error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const limitesPorCliente = useMemo(() => {
     const mapa = {};
@@ -127,12 +124,34 @@ function ClientesLimitesModule() {
     }
   };
 
-  const verConsumo = (cliente) => {
-    const limitesCliente = limitesPorCliente[cliente.id] || {};
-    const diario = limitesCliente.DIARIO?.valor || 0;
-    const mensual = limitesCliente.MENSUAL?.valor || 0;
+ const verConsumo = async (cliente) => {
+  const limitesCliente = limitesPorCliente[cliente.id] || {};
+  const diario = limitesCliente.DIARIO?.valor || 0;
+  const mensual = limitesCliente.MENSUAL?.valor || 0;
+  
+  try {
+    const hoy = new Date().toISOString().split('T')[0];
+    const res = await apiClient.get(`/ventas/?cliente=${cliente.id}&estado=COMPLETADA`);
+    const ventas = Array.isArray(res.data) ? res.data : res.data.results || [];
+    
+    const consumoHoy = ventas
+      .filter(v => v.fecha_hora?.startsWith(hoy))
+      .reduce((acc, v) => acc + parseFloat(v.total || 0), 0);
+    
+    const mesActual = hoy.substring(0, 7);
+    const consumoMes = ventas
+      .filter(v => v.fecha_hora?.startsWith(mesActual))
+      .reduce((acc, v) => acc + parseFloat(v.total || 0), 0);
+
+    alert(
+      `Consumo de ${cliente.nombre}\n` +
+      `Límite diario: Bs ${parseFloat(diario).toFixed(2)} | Consumido hoy: Bs ${consumoHoy.toFixed(2)}\n` +
+      `Límite mensual: Bs ${parseFloat(mensual).toFixed(2)} | Consumido este mes: Bs ${consumoMes.toFixed(2)}`
+    );
+  } catch {
     alert(`Consumo configurado para ${cliente.nombre}\nLímite diario: ${formatearBs(diario)}\nLímite mensual: ${formatearBs(mensual)}`);
-  };
+  }
+};
 
   return (
     <div className="space-y-6">
