@@ -54,14 +54,5 @@ export const turnosService = {
 export const vehiculosService = {
     buscarPorPlaca: (placa) => apiClient.get(`/vehiculos/buscar_placa/?placa=${placa}`),
     registrarClienteVehiculo: (data) => apiClient.post('/vehiculos/registrar_cliente_vehiculo/', data),
-<<<<<<< HEAD
     registrarEnEmpresa: (clienteId) => apiClient.post('/vehiculos/registrar_en_empresa/', { cliente_id: clienteId }),
-=======
-};
-
-export const prepagoOperadorService = {
-    validarPrepago: (numeroOrden) => apiClient.get(`/prepago/validar/${numeroOrden}/`),
-    despacharPrepago: (numeroOrden, ladoId) => apiClient.post(`/prepago/despachar/${numeroOrden}/`, { lado_id: ladoId }),
-    getOrdenesPendientes: (estado = 'TODOS') => apiClient.get(`/prepago/ordenes-pendientes/?estado=${estado}`),
->>>>>>> origin/enriqSPR3
 };
