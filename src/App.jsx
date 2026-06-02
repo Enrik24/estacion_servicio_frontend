@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyAccountPage from './pages/VerifyAccountPage';
 import AdminPanel from './pages/AdminPanel';
 import VentasPanel from './pages/VentasPage';
 import BitacoraPage from './pages/BitacoraPage';
@@ -22,10 +23,12 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/sucursales" element={<SucursalesPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/verify-account/:token" element={<VerifyAccountPage />} />
         <Route path="/admin/*" element={
           <ProtectedRoute rolesPermitidos={['Administrador']}>
             <AdminPanel />

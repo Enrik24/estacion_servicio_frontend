@@ -20,7 +20,9 @@ apiClient.interceptors.request.use(
       config.url === '/token/verify/' ||
       config.url === '/auth/request-reset/' ||
       config.url === '/auth/register/' ||
-      config.url?.includes('/auth/reset-password/')
+      config.url?.includes('/auth/reset-password/') ||
+      config.url?.includes('/auth/verify-account/') ||
+      config.url === '/auth/resend-verification/'
     ) {
       return config;
     }
@@ -117,3 +119,4 @@ export { ventasService} from './ventasService.js';
 export { clientesService } from './clientesService.js';
 export { limitesConsumoService } from './limitesConsumoService.js';
 export { prediccionesIAService } from './prediccionesIAService.js';
+export { prepaidService } from './prepaidService.js';

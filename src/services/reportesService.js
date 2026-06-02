@@ -41,4 +41,8 @@ export const reportesService = {
         console.log('[ReportesService] Solicitando Islas:', url);
         return apiClient.get(url);
     },
+    sendEmail: (data) => {
+        console.log('[ReportesService] Enviando email:', data);
+        return apiClient.post('/reportes/email/', data);
+    }
 };

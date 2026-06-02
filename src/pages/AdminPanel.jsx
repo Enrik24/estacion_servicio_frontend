@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import apiClient from '../services/api';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
@@ -1431,19 +1432,19 @@ function TurnosAdminModule() {
   );
 }
 function TurnosAdminModule() {
-    const [turnos, setTurnos] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
-    const [horario, setHorario] = useState('');
-    const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
-    const [ventas, setVentas] = useState([]);
-    const [tabCombustible, setTabCombustible] = useState(null);
-    const [loadingVentas, setLoadingVentas] = useState(false);
+  const [turnos, setTurnos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [horario, setHorario] = useState('');
+  const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
+  const [ventas, setVentas] = useState([]);
+  const [tabCombustible, setTabCombustible] = useState(null);
+  const [loadingVentas, setLoadingVentas] = useState(false);
 
-    useEffect(() => {
-        cargarTurnos();
-    }, [fecha, horario]);
+  useEffect(() => {
+    cargarTurnos();
+  }, [fecha, horario]);
 
     const cargarTurnos = async () => {
         setLoading(true);
@@ -1828,12 +1829,8 @@ function BackupModule() {
         }
     };
 
-    return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
-                <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
-            </div>
+  const totalGeneral = turnos.reduce((acc, t) => acc + (t.total_ventas || 0), 0).toFixed(2);
+  const litrosGeneral = turnos.reduce((acc, t) => acc + (t.total_litros || 0), 0).toFixed(3);
 
             {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1959,8 +1956,316 @@ function BackupModule() {
                     </Button>
                 </div>
             </div>
+
+      {/* Mostrar error si existe */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+          ❌ {error}
         </div>
-    );
+      )}
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Turnos</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.length}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Ventas totales</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">Bs. {totalGeneral}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold mb-2">
+            Litros por combustible
+          </p>
+
+          {tiposCombustible.length === 0 ? (
+            <p className="text-2xl font-bold text-slate-900 mt-1">{litrosGeneral} Lt</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-1 mb-3">
+                {tiposCombustible.map((tipo) => (
+                  <button
+                    key={tipo}
+                    onClick={() => setTabCombustible(tipo)}
+                    className={`text-xs px-2 py-1 rounded-full border transition ${tabActivo === tipo
+                        ? 'bg-blue-100 text-blue-700 border-blue-300'
+                        : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+                      }`}
+                  >
+                    {tipo.replace('Gasolina ', '').replace(' Oil', '')}
+                  </button>
+                ))}
+              </div>
+
+              {tabActivo && (
+                <p className="text-2xl font-bold text-slate-900">
+                  {litrosPorTipo[tabActivo].cantidad.toFixed(3)}{' '}
+                  {litrosPorTipo[tabActivo].unidad}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase font-semibold">Transacciones</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{turnos.reduce((acc, t) => acc + (t.cantidad_ventas || 0), 0)}</p>
+        </div>
+      </div>
+
+      {/* Lista de turnos */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <h3 className="font-semibold text-slate-900">Turnos del día</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Operador</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Isla</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Horario</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Apertura</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Ventas</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Detalle</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
+                      Cargando turnos...
+                    </div>
+                  </td>
+                </tr>
+              ) : turnos.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">No hay turnos registrados para esta fecha</td>
+                </tr>
+              ) : (
+                turnos.map(t => (
+                  <tr key={t.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-slate-800 font-medium">{t.operador || t.operador_nombre || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-600">Isla {t.isla || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-600">{t.horario || 'N/A'}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">{t.fecha_apertura ? new Date(t.fecha_apertura).toLocaleTimeString('es-BO') : 'N/A'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${t.estado === 'ABIERTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {t.estado || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{t.cantidad_ventas || 0}</td>
+                    <td className="px-4 py-3 text-gray-600">{(t.total_litros || 0).toFixed(3)} Lt</td>
+                    <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {(t.total_ventas || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => verVentas(t)}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Ver ventas
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Detalle de ventas del turno seleccionado */}
+      {turnoSeleccionado && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-900">
+              Ventas — {turnoSeleccionado.operador || turnoSeleccionado.operador_nombre} / Isla {turnoSeleccionado.isla} / {turnoSeleccionado.horario}
+            </h3>
+            <button onClick={() => setTurnoSeleccionado(null)} className="text-xs text-gray-400 hover:text-gray-600">Cerrar</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Comprobante</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Lado</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Combustible</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Total</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Pago</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Hora</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {loadingVentas ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">Cargando...</td>
+                  </tr>
+                ) : ventas.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-400 text-sm">No hay ventas en este turno</td>
+                  </tr>
+                ) : (
+                  ventas.map(v => (
+                    <tr key={v.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{v.numero_comprobante}</td>
+                      <td className="px-4 py-3 text-gray-600">Lado {v.lado_nombre}</td>
+                      <td className="px-4 py-3 text-gray-800">{v.tipo_combustible_nombre}</td>
+                      <td className="px-4 py-3 text-gray-800">{v.litros} Lt</td>
+                      <td className="px-4 py-3 font-semibold text-emerald-600">Bs. {v.total}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{v.metodo_pago}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{new Date(v.fecha_hora).toLocaleTimeString('es-BO')}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const backupService = {
+  descargar: () => apiClient.get('/backup/descargar/', {
+    responseType: 'blob',
+    timeout: 60000
+  }),
+  restaurar: (archivo) => {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+    return apiClient.post('/backup/restaurar/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+};
+function BackupModule() {
+  const [loading, setLoading] = useState(false);
+  const [loadingRestore, setLoadingRestore] = useState(false);
+  const [error, setError] = useState(null);
+  const [exito, setExito] = useState(null);
+  const [archivoRestore, setArchivoRestore] = useState(null);
+
+  const handleDescargar = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await backupService.descargar();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const fecha = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      link.setAttribute('download', `backup_${fecha}.sql`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setExito('Backup descargado correctamente');
+    } catch (err) {
+      setError('Error al generar el backup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestaurar = async () => {
+    if (!archivoRestore) {
+      setError('Selecciona un archivo .sql para restaurar');
+      return;
+    }
+    if (!confirm('¿Estás seguro? Esta acción reemplazará todos los datos actuales de la base de datos.')) return;
+    setLoadingRestore(true);
+    setError(null);
+    try {
+      await backupService.restaurar(archivoRestore);
+      setExito('Base de datos restaurada correctamente');
+      setArchivoRestore(null);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al restaurar el backup');
+    } finally {
+      setLoadingRestore(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">Backup y Restauración</h2>
+        <p className="text-sm text-gray-500 mt-1">Gestiona las copias de seguridad de la base de datos</p>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+      {exito && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+          <p className="text-emerald-700 text-sm">{exito}</p>
+        </div>
+      )}
+
+      {/* Tarjeta Backup */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div>
+          <h3 className="font-semibold text-slate-900 text-lg">Generar Backup</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Descarga una copia completa de la base de datos en formato <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span>. Guarda este archivo en un lugar seguro.
+          </p>
+        </div>
+        <Button onClick={handleDescargar} loading={loading} fullWidth={false} size="small">
+          Descargar Backup
+        </Button>
+      </div>
+
+      {/* Tarjeta Restore */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div>
+          <h3 className="font-semibold text-slate-900 text-lg">Restaurar Backup</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Sube un archivo <span className="font-mono text-xs bg-gray-100 px-1 rounded">.sql</span> generado previamente. <span className="text-red-600 font-medium">Esta acción reemplazará todos los datos actuales.</span>
+          </p>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+              Seleccionar archivo .sql
+            </label>
+            <input
+              type="file"
+              accept=".sql"
+              onChange={(e) => {
+                setArchivoRestore(e.target.files[0]);
+                setError(null);
+                setExito(null);
+              }}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-slate-800"
+            />
+          </div>
+          {archivoRestore && (
+            <p className="text-xs text-gray-500">
+              Archivo seleccionado: <span className="font-medium text-slate-700">{archivoRestore.name}</span>
+            </p>
+          )}
+          <Button
+            onClick={handleRestaurar}
+            loading={loadingRestore}
+            fullWidth={false}
+            size="small"
+            className="!bg-red-600 hover:!bg-red-700"
+          >
+            Restaurar Base de Datos
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 function AdminPanel() {
   return (

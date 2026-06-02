@@ -88,6 +88,14 @@ login: async (credentials) => {
 
   register: async (userData) => {
     return apiClient.post('/auth/register/', userData);
+  },
+
+  verifyAccount: async (token) => {
+    return apiClient.post(`/auth/verify-account/${token}/`);
+  },
+
+  resendVerification: async (email) => {
+    return apiClient.post('/auth/resend-verification/', { email });
   }
 };
 

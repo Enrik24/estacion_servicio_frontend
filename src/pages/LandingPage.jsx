@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Fuel, CircleCheck as CheckCircle, Zap, FileText, Headphones, Shield, Target, Award } from 'lucide-react';
+import { Fuel, Flame, CircleCheck as CheckCircle, Zap, FileText, Headphones, Shield, Target, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Header from '../components/layout/Header';
 import Footer from '../components/layout/Footer';
+import { preciosCombustibleService } from '../services/ventasService';
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -23,18 +24,46 @@ function LandingPage() {
     // Check authentication at click time
     const token = localStorage.getItem('access_token');
     if (token) {
-      navigate('/'); // Stay on same page since user is already here
+      navigate('/comprar-combustible');
     } else {
       navigate('/register');
     }
   };
 
-  const combustibles = [
-    { nombre: 'Gasolina Especial', precio: '3.74', unidad: 'Bs/LT', color: 'border-gray-400' },
-    { nombre: 'Gasolina Premium Plus', precio: '4.79', unidad: 'Bs/LT', color: 'border-red-500' },
-    { nombre: 'Diésel Oil', precio: '3.72', unidad: 'Bs/LT', color: 'border-blue-900' },
-    { nombre: 'GNV', precio: '1.66', unidad: 'Bs/M3', color: 'border-green-500' }
-  ];
+  const [combustibles, setCombustibles] = useState([]);
+  const [loadingCombustibles, setLoadingCombustibles] = useState(true);
+
+  useEffect(() => {
+    const fetchCombustibles = async () => {
+      try {
+        const response = await preciosCombustibleService.getAll();
+        const visualMap = {
+          'GASOLINA_ESPECIAL': { border: 'border-gray-400', icon: 'text-gray-500', bg: 'bg-gray-50', iconBg: 'bg-gray-100', shadow: 'hover:shadow-gray-200', iconComp: Fuel },
+          'GASOLINA_PREMIUM':  { border: 'border-red-500', icon: 'text-red-500', bg: 'bg-red-50', iconBg: 'bg-red-100', shadow: 'hover:shadow-red-200', iconComp: Fuel },
+          'DIESEL':            { border: 'border-blue-900', icon: 'text-blue-800', bg: 'bg-blue-50', iconBg: 'bg-blue-100', shadow: 'hover:shadow-blue-200', iconComp: Fuel },
+          'GNV':               { border: 'border-green-500', icon: 'text-green-500', bg: 'bg-green-50', iconBg: 'bg-green-100', shadow: 'hover:shadow-green-200', iconComp: Flame }
+        };
+        
+        const dataMapped = response.data.map(item => {
+          const defaultVisuals = { border: 'border-gray-400', icon: 'text-gray-500', bg: 'bg-white', iconBg: 'bg-gray-100', shadow: 'hover:shadow-gray-200', iconComp: Fuel };
+          return {
+            nombre: item.nombre,
+            precio: item.precio_unitario,
+            unidad: `Bs/${item.unidad.toUpperCase()}`,
+            visuals: visualMap[item.codigo] || defaultVisuals
+          };
+        });
+        
+        setCombustibles(dataMapped);
+      } catch (error) {
+        console.error('Error fetching combustibles:', error);
+      } finally {
+        setLoadingCombustibles(false);
+      }
+    };
+
+    fetchCombustibles();
+  }, []);
 
   const servicios = [
     {
@@ -115,7 +144,7 @@ function LandingPage() {
                 <button className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg">
                   COMENZAR AHORA
                 </button>
-                <button className="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-slate-900 transition">
+                <button onClick={() => navigate('/sucursales')} className="px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-slate-900 transition">
                   VER SUCURSALES
                 </button>
               </div>
@@ -162,19 +191,37 @@ function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {combustibles.map((combustible, index) => (
-              <motion.div
+            {loadingCombustibles ? (
+              <div className="col-span-full text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                <p className="text-gray-600 font-medium">Cargando precios actualizados...</p>
+              </div>
+            ) : (
+              combustibles.map((combustible, index) => {
+                const Icon = combustible.visuals.iconComp;
+                return (
+                <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className={`bg-white rounded-lg p-6 shadow-lg border-l-4 ${combustible.color} hover:shadow-xl transition`}
+                className={`relative bg-white rounded-xl p-6 shadow-md border-t-4 ${combustible.visuals.border} hover:-translate-y-1 hover:shadow-xl ${combustible.visuals.shadow} transition-all duration-300 flex flex-col justify-between`}
               >
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{combustible.nombre}</h3>
-                <div className="mb-4">
-                  <span className="text-4xl font-bold text-slate-900">{combustible.precio}</span>
-                  <span className="text-gray-600 ml-2">{combustible.unidad}</span>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`p-2.5 rounded-lg ${combustible.visuals.iconBg}`}>
+                      <Icon className={`w-6 h-6 ${combustible.visuals.icon}`} />
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${combustible.visuals.bg} ${combustible.visuals.icon}`}>
+                      Disponible
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800 mb-1 leading-tight">{combustible.nombre}</h3>
+                  <div className="flex items-baseline mb-6 mt-2">
+                    <span className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">{combustible.precio}</span>
+                    <span className="text-gray-500 font-medium ml-2 text-sm sm:text-base">{combustible.unidad}</span>
+                  </div>
                 </div>
                 <button 
                   onClick={() => {
@@ -182,18 +229,19 @@ function LandingPage() {
                     console.log('Token at click:', localStorage.getItem('access_token'));
                     handleBuyClick();
                   }}
-                  className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition"
+                  className="w-full mt-auto px-4 py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-orange-500 hover:shadow-md transition-colors duration-300 group flex items-center justify-center"
                 >
                   {(() => {
                     const token = localStorage.getItem('access_token');
-                    console.log('=== RENDER BUTTON ===');
-                    console.log('Token in render:', token);
-                    console.log('Button text will be:', token ? 'Comprar' : 'Registrarse para Comprar');
-                    return token ? 'Comprar' : 'Registrarse para Comprar';
+                    return token ? 'Comprar Ahora' : 'Registrarse para Comprar';
                   })()}
+                  <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </motion.div>
-            ))}
+              );
+            }))}
           </div>
         </div>
       </section>
@@ -239,7 +287,7 @@ function LandingPage() {
             <p className="text-xl text-gray-300 mb-8 leading-relaxed">
               Contamos con una red estratégica de estaciones de servicio distribuidas en las principales ciudades y rutas del país, garantizando acceso continuo a combustible de calidad.
             </p>
-            <button className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg">
+            <button onClick={() => navigate('/sucursales')} className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition shadow-lg">
               LOCALIZAR SURTIDOR CERCANO
             </button>
           </motion.div>

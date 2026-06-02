@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.5.0",
+    "@stripe/stripe-js": "^9.7.0",
     "autoprefixer": "^10.4.27",
     "axios": "^1.14.0",
     "framer-motion": "^12.38.0",
@@ -26,6 +28,7 @@
     "react-onesignal": "^3.5.3",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
+    "sweetalert2": "^11.26.25",
     "tailwindcss": "^4.2.2",
     "xlsx": "^0.18.5"
   },

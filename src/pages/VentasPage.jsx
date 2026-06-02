@@ -912,6 +912,256 @@ function RegistrarVentaModule() {
     );
 }
 
+function DespachoPrepagoModule() {
+    const [numeroOrden, setNumeroOrden] = useState('');
+    const [ordenValida, setOrdenValida] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [exito, setExito] = useState('');
+    const [lados, setLados] = useState([]);
+    const [selectedLado, setSelectedLado] = useState('');
+    const [turno, setTurno] = useState(null);
+    const [ordenesPendientes, setOrdenesPendientes] = useState([]);
+    const [loadingOrdenes, setLoadingOrdenes] = useState(false);
+
+    useEffect(() => {
+        cargarDatosBasicos();
+        cargarOrdenesPendientes();
+    }, []);
+
+    const cargarOrdenesPendientes = async () => {
+        setLoadingOrdenes(true);
+        try {
+            const res = await prepagoOperadorService.getOrdenesPendientes('TODOS');
+            setOrdenesPendientes(res.data);
+        } catch (err) {
+            console.error('Error cargando ordenes pendientes:', err);
+        } finally {
+            setLoadingOrdenes(false);
+        }
+    };
+
+    const cargarDatosBasicos = async () => {
+        try {
+            const turnoRes = await turnosService.getMiTurno();
+            const turnoData = turnoRes.data.turno || turnoRes.data;
+            setTurno(turnoData);
+            if (turnoData && turnoData.isla) {
+                const ladosRes = await ladosService.getPorIsla(turnoData.isla);
+                setLados(Array.isArray(ladosRes.data) ? ladosRes.data : ladosRes.data.results || []);
+            }
+        } catch (err) {
+            console.error('Error cargando datos básicos:', err);
+        }
+    };
+
+    const validarOrdenDirecta = async (numero) => {
+        setLoading(true);
+        setError('');
+        setExito('');
+        setOrdenValida(null);
+        try {
+            const res = await prepagoOperadorService.validarPrepago(numero);
+            setOrdenValida(res.data);
+            if (lados.length > 0) {
+                setSelectedLado(lados[0].id);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            setError(err.response?.data?.error || 'Error al validar la orden');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleValidar = async (e) => {
+        e.preventDefault();
+        validarOrdenDirecta(numeroOrden);
+    };
+
+    const handleDespachar = async () => {
+        if (!selectedLado) {
+            setError('Debe seleccionar un lado');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        try {
+            await prepagoOperadorService.despacharPrepago(numeroOrden, selectedLado);
+            setExito('Despacho realizado con éxito');
+            setOrdenValida(null);
+            setNumeroOrden('');
+            cargarOrdenesPendientes();
+        } catch (err) {
+            setError(err.response?.data?.error || 'Error al despachar');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!turno || !turno.id) {
+        return (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center space-y-3">
+                <AlertCircle className="w-10 h-10 text-orange-400 mx-auto" />
+                <h3 className="font-bold text-slate-900 text-lg">Sin turno activo</h3>
+                <p className="text-gray-500 text-sm">Debes abrir un turno antes de despachar órdenes</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Órdenes de Venta (Prepago)</h2>
+
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                    <p className="text-red-700 text-sm">{error}</p>
+                </div>
+            )}
+            {exito && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <p className="text-emerald-700 text-sm">{exito}</p>
+                </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <form onSubmit={handleValidar} className="flex flex-col sm:flex-row gap-4 items-end">
+                    <div className="flex-1 w-full">
+                        <Input
+                            label="Número de Orden"
+                            value={numeroOrden}
+                            onChange={(e) => setNumeroOrden(e.target.value)}
+                            placeholder="Ej: PRE-20260531-..."
+                            required
+                        />
+                    </div>
+                    <Button type="submit" loading={loading} className="w-full sm:w-auto px-8">Validar</Button>
+                </form>
+            </div>
+
+            {ordenValida && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fade-in">
+                    <h3 className="font-bold text-slate-800 text-lg mb-4 border-b border-gray-200 pb-2">Detalles de la Orden</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Cliente</p>
+                            <p className="font-medium text-slate-800">{ordenValida.cliente_nombre}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Carnet / NIT</p>
+                            <p className="font-medium text-slate-800">{ordenValida.cliente_ci || ordenValida.cliente_nit || 'No especificado'}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Combustible</p>
+                            <p className="font-medium text-slate-800">{ordenValida.tipo_combustible_nombre}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Cantidad a despachar</p>
+                            <p className="font-bold text-orange-600 text-lg">{ordenValida.litros} Lt (Bs. {ordenValida.monto_total})</p>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 pt-4 space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Seleccionar Lado de Despacho</label>
+                            <select
+                                value={selectedLado}
+                                onChange={(e) => setSelectedLado(e.target.value)}
+                                className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                required
+                            >
+                                <option value="">Selecciona el lado</option>
+                                {lados.map(l => (
+                                    <option key={l.id} value={l.id}>{l.nombre_completo}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <Button 
+                            onClick={handleDespachar} 
+                            loading={loading}
+                            className="w-full !bg-emerald-600 hover:!bg-emerald-700"
+                        >
+                            Confirmar Despacho
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 mt-6">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 className="font-semibold text-slate-900">Órdenes Pendientes</h3>
+                    <Button onClick={cargarOrdenesPendientes} size="small" className="!bg-gray-100 !text-gray-700 hover:!bg-gray-200" disabled={loadingOrdenes}>
+                        {loadingOrdenes ? 'Actualizando...' : 'Actualizar'}
+                    </Button>
+                </div>
+                <div className="overflow-x-auto">
+                    {loadingOrdenes ? (
+                        <div className="p-8 text-center text-gray-500">Cargando órdenes...</div>
+                    ) : (
+                        <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Orden</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Cliente</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Combustible</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Litros</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Monto</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Estado</th>
+                                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {ordenesPendientes.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                                            No hay órdenes pendientes
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    ordenesPendientes.map((orden) => (
+                                        <tr key={orden.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 font-mono text-xs text-gray-600">{orden.numero_orden}</td>
+                                            <td className="px-4 py-3 text-gray-900 font-medium">{orden.cliente_nombre}</td>
+                                            <td className="px-4 py-3 text-gray-900">{orden.tipo_combustible_nombre}</td>
+                                            <td className="px-4 py-3 text-gray-900">{orden.litros} Lt</td>
+                                            <td className="px-4 py-3 font-semibold text-slate-900">Bs. {orden.monto_total}</td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${orden.estado === 'PAGADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    {orden.estado}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 flex items-center gap-2">
+                                                {orden.estado === 'PAGADO' && (
+                                                    <Button 
+                                                        size="small" 
+                                                        onClick={() => {
+                                                            setNumeroOrden(orden.numero_orden);
+                                                            validarOrdenDirecta(orden.numero_orden);
+                                                        }}
+                                                    >
+                                                        Atender
+                                                    </Button>
+                                                )}
+                                                {orden.comprobante_pdf_url && (
+                                                    <a href={orden.comprobante_pdf_url} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-600 transition-colors" title="Ver Comprobante">
+                                                        <Receipt className="w-5 h-5" />
+                                                    </a>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function VentasPanel() {
     return (
         <div className="flex min-h-screen bg-gray-50">
@@ -923,6 +1173,7 @@ function VentasPanel() {
                         <Route path="/" element={<Navigate to="turno" replace />} />
                         <Route path="turno" element={<TurnoModule />} />
                         <Route path="registrar" element={<RegistrarVentaModule />} />
+                        <Route path="prepago" element={<DespachoPrepagoModule />} />
                     </Routes>
                 </main>
             </div>
