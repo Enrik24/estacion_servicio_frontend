@@ -31,19 +31,25 @@ function LoginPage() {
       });
 
       const user = response.user;
-      const rol = user?.roles_detalle?.[0]?.nombre || '';
 
-      if (rol === 'Administrador') {
-          navigate('/admin');
-      } else if (rol === 'Gerente') {
-          navigate('/gerente');
-      } else if (rol === 'Operador') {
-          navigate('/ventas/turno');
-      } else if (rol === 'Auditor') {
-          navigate('/admin/bitacora');
-      } else {
-          navigate('/dashboard');
-      }
+if (user?.is_superuser) {
+    navigate('/superadmin');
+    return;
+}
+
+const rol = user?.roles_detalle?.[0]?.nombre || '';
+
+if (rol === 'Administrador') {
+    navigate('/admin');
+} else if (rol === 'Gerente') {
+    navigate('/gerente');
+} else if (rol === 'Operador') {
+    navigate('/ventas/turno');
+} else if (rol === 'Auditor') {
+    navigate('/admin/bitacora');
+} else {
+    navigate('/dashboard');
+}
     } catch (err) {
         console.error('Error de inicio de sesión:', err);
         const errorMessage = err.response?.data?.detail || err.response?.data?.error || 'Credenciales incorrectas o error de conexión.';
