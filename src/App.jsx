@@ -43,7 +43,7 @@ function App() {
             <ConsolidacionCaja />
           </ProtectedRoute>
         } />
-        // Agrega ruta de gerente
+        {/* Agrega ruta de gerente */}
         <Route path="/gerente/*" element={
           <ProtectedRoute rolesPermitidos={['Gerente']}>
             <GerentePanel />
@@ -72,7 +72,7 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/comprar-combustible" element={
-          <ProtectedRoute rolesPermitidos={['Cliente']}>
+          <ProtectedRoute>
             <PrepaidOrderWizard />
           </ProtectedRoute>
         } />

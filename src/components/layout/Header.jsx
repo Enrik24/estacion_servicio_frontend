@@ -29,7 +29,7 @@ function Header({
       try {
         const user = JSON.parse(userStr);
         setUserName(user.nombre || user.email || 'Usuario');
-        const roleName = user.roles_detalle?.[0]?.nombre || user.rol || '';
+        const roleName = (user.roles_detalle?.[0]?.nombre || user.rol || '');
         setUserRole(roleName);
       } catch (e) {
         console.error('Error parsing user from localStorage:', e);
@@ -207,7 +207,7 @@ function Header({
     </button>
 
     {/* Solo mostrar Panel Admin si el usuario es Administrador o Gerente */}
-  {['administrador', 'gerente'].includes(userRole.toLowerCase()) && (
+  {(userRole && ['administrador', 'gerente'].includes(userRole.toLowerCase())) && (
     <button
         onClick={() => navigate(userRole.toLowerCase() === 'gerente' ? '/gerente' : '/admin')}
         className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"

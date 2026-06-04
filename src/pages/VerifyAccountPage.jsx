@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Fuel, Shield, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
@@ -15,44 +15,31 @@ function VerifyAccountPage() {
   const hasRequested = useRef(false);
 
   useEffect(() => {
-    let mounted = true;
+    if (hasRequested.current) return;
+    hasRequested.current = true;
 
     const verifyToken = async () => {
       if (!token) {
-        if (mounted) {
-          setStatus('error');
-          setMessage('Token de verificación no válido o inexistente.');
-        }
+        setStatus('error');
+        setMessage('Token de verificación no válido o inexistente.');
         return;
       }
 
-      if (hasRequested.current) return;
-      hasRequested.current = true;
-
       try {
         const response = await authService.verifyAccount(token);
-        if (mounted) {
-          setStatus('success');
-          setMessage(response.data?.mensaje || 'Cuenta verificada correctamente. Ya puedes iniciar sesión.');
-          // Opcional: Redirigir automáticamente después de unos segundos
-          setTimeout(() => {
-            navigate('/login', { state: { message: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' } });
-          }, 4000);
-        }
+        setStatus('success');
+        setMessage(response.data?.mensaje || 'Cuenta verificada correctamente. Ya puedes iniciar sesión.');
+        setTimeout(() => {
+          navigate('/login', { state: { message: 'Cuenta verificada correctamente. Ya puedes iniciar sesión.' } });
+        }, 4000);
       } catch (err) {
-        if (mounted) {
-          setStatus('error');
-          console.error('Error verificando cuenta:', err);
-          setMessage(err.response?.data?.error || err.response?.data?.detail || 'El enlace de verificación es inválido o ha expirado.');
-        }
+        setStatus('error');
+        console.error('Error verificando cuenta:', err);
+        setMessage(err.response?.data?.error || err.response?.data?.detail || 'El enlace de verificación es inválido o ha expirado.');
       }
     };
 
     verifyToken();
-
-    return () => {
-      mounted = false;
-    };
   }, [token, navigate]);
 
   return (

@@ -342,12 +342,12 @@ const handleEditarEmpresa = async (e) => {
             {/* Modal nueva empresa */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4">Nueva Empresa</h3>
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg sm:text-xl font-bold mb-4">Nueva Empresa</h3>
                         <form onSubmit={handleCrearEmpresa} className="space-y-4">
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Datos de la empresa</p>
                             <Input label="Nombre de la empresa" value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} required />
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <Input label="NIT" value={formData.nit} onChange={e => setFormData({ ...formData, nit: e.target.value })} />
                                 <Input label="Teléfono" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} />
                             </div>
@@ -387,22 +387,24 @@ const handleEditarEmpresa = async (e) => {
     </p>
     <div className="space-y-2">
         {tiposCombustible.map(t => (
-            <div key={t.tipo} className="flex items-center gap-3">
-                <input
-                    type="checkbox"
-                    id={`tipo-${t.tipo}`}
-                    checked={!!tiposSeleccionados[t.tipo]}
-                    onChange={(e) => {
-                        if (e.target.checked) {
-                            setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: t.precio_default });
-                        } else {
-                            const { [t.tipo]: _, ...rest } = tiposSeleccionados;
-                            setTiposSeleccionados(rest);
-                        }
-                    }}
-                    className="h-4 w-4 text-emerald-500 rounded"
-                />
-                <label htmlFor={`tipo-${t.tipo}`} className="text-sm text-gray-700 w-40">{t.nombre}</label>
+            <div key={t.tipo} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                    <input
+                        type="checkbox"
+                        id={`tipo-${t.tipo}`}
+                        checked={!!tiposSeleccionados[t.tipo]}
+                        onChange={(e) => {
+                            if (e.target.checked) {
+                                setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: t.precio_default });
+                            } else {
+                                const { [t.tipo]: _, ...rest } = tiposSeleccionados;
+                                setTiposSeleccionados(rest);
+                            }
+                        }}
+                        className="h-4 w-4 text-emerald-500 rounded flex-shrink-0"
+                    />
+                    <label htmlFor={`tipo-${t.tipo}`} className="text-sm text-gray-700">{t.nombre}</label>
+                </div>
                 {tiposSeleccionados[t.tipo] !== undefined && (
                     <div className="flex items-center gap-1">
                         <span className="text-xs text-gray-400">Bs.</span>
@@ -411,7 +413,7 @@ const handleEditarEmpresa = async (e) => {
                             step="0.01"
                             value={tiposSeleccionados[t.tipo]}
                             onChange={(e) => setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: parseFloat(e.target.value) })}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-full sm:w-24"
                         />
                         <span className="text-xs text-gray-400">/Lt</span>
                     </div>
@@ -427,7 +429,7 @@ const handleEditarEmpresa = async (e) => {
 
                             {error && <p className="text-xs text-red-500">{error}</p>}
 
-                            <div className="flex gap-3 pt-2">
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
                                 <Button type="submit" loading={loading}>Crear empresa</Button>
                                 <Button type="button" onClick={() => setShowModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
                             </div>
@@ -437,11 +439,11 @@ const handleEditarEmpresa = async (e) => {
             )}
             {showEditModal && editingEmpresa && (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
-            <h3 className="text-xl font-bold mb-4">Editar Empresa</h3>
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-bold mb-4">Editar Empresa</h3>
             <form onSubmit={handleEditarEmpresa} className="space-y-4">
                 <Input label="Nombre de la empresa" value={editFormData.nombre} onChange={e => setEditFormData({...editFormData, nombre: e.target.value})} required />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input label="NIT" value={editFormData.nit} onChange={e => setEditFormData({...editFormData, nit: e.target.value})} />
                     <Input label="Teléfono" value={editFormData.telefono} onChange={e => setEditFormData({...editFormData, telefono: e.target.value})} />
                 </div>
@@ -458,38 +460,38 @@ const handleEditarEmpresa = async (e) => {
                         <option value="PROFESIONAL">Profesional</option>
                         <option value="ENTERPRISE">Enterprise</option>
                     </select>
-                    <div className="border-t border-gray-200 pt-4">
-    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-        Cambiar administrador (opcional)
-    </p>
-    <Input 
-        label="Email del nuevo administrador" 
-        type="email" 
-        value={editFormData.nuevo_admin_email || ''} 
-        onChange={e => setEditFormData({...editFormData, nuevo_admin_email: e.target.value})} 
-        placeholder="Dejar vacío para no cambiar"
-    />
-    {editFormData.nuevo_admin_email && (
-        <>
-            <Input 
-                label="Nombre del administrador" 
-                value={editFormData.nuevo_admin_nombre || ''} 
-                onChange={e => setEditFormData({...editFormData, nuevo_admin_nombre: e.target.value})}
-                required 
-            />
-            <Input 
-                label="Contraseña inicial" 
-                type="password" 
-                value={editFormData.nuevo_admin_password || ''} 
-                onChange={e => setEditFormData({...editFormData, nuevo_admin_password: e.target.value})}
-                required 
-            />
-        </>
-    )}
-</div>
+                </div>
+                <div className="border-t border-gray-200 pt-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                        Cambiar administrador (opcional)
+                    </p>
+                    <Input 
+                        label="Email del nuevo administrador" 
+                        type="email" 
+                        value={editFormData.nuevo_admin_email || ''} 
+                        onChange={e => setEditFormData({...editFormData, nuevo_admin_email: e.target.value})} 
+                        placeholder="Dejar vacío para no cambiar"
+                    />
+                    {editFormData.nuevo_admin_email && (
+                        <>
+                            <Input 
+                                label="Nombre del administrador" 
+                                value={editFormData.nuevo_admin_nombre || ''} 
+                                onChange={e => setEditFormData({...editFormData, nuevo_admin_nombre: e.target.value})}
+                                required 
+                            />
+                            <Input 
+                                label="Contraseña inicial" 
+                                type="password" 
+                                value={editFormData.nuevo_admin_password || ''} 
+                                onChange={e => setEditFormData({...editFormData, nuevo_admin_password: e.target.value})}
+                                required 
+                            />
+                        </>
+                    )}
                 </div>
                 {error && <p className="text-xs text-red-500">{error}</p>}
-                <div className="flex gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <Button type="submit" loading={loading}>Guardar cambios</Button>
                     <Button type="button" onClick={() => setShowEditModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
                 </div>

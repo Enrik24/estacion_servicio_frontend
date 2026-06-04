@@ -10,7 +10,7 @@ function ProtectedRoute({ children, rolesPermitidos,soloSuperAdmin=false }) {
 
     try {
         const user = JSON.parse(userStr);
-        const rol = user?.rol || '';
+        const rol = (user?.roles_detalle?.[0]?.nombre || user?.rol || '').toLowerCase();
         const isSuperuser = user?.is_superuser || false;
 
         if (soloSuperAdmin) {
@@ -21,11 +21,11 @@ function ProtectedRoute({ children, rolesPermitidos,soloSuperAdmin=false }) {
             return <Navigate to="/superadmin" replace />;
         }
 
-        if (rolesPermitidos && !rolesPermitidos.includes(rol)) {
-            if (rol === 'Operador') return <Navigate to="/ventas/turno" replace />;
-            if (rol === 'Administrador') return <Navigate to="/admin" replace />;
-            if (rol === 'Gerente') return <Navigate to="/admin" replace />;
-            if (rol === 'Auditor') return <Navigate to="/bitacora" replace />;
+        if (rolesPermitidos && !rolesPermitidos.map(r => r.toLowerCase()).includes(rol)) {
+            if (rol === 'operador') return <Navigate to="/ventas/turno" replace />;
+            if (rol === 'administrador') return <Navigate to="/admin" replace />;
+            if (rol === 'gerente') return <Navigate to="/admin" replace />;
+            if (rol === 'auditor') return <Navigate to="/bitacora" replace />;
             return <Navigate to="/" replace />;
         }
 
