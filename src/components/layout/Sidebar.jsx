@@ -22,7 +22,8 @@ import {
   BarChart3,
   Activity,
   Droplets,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -86,6 +87,7 @@ const combustibleSubModules = [
 ];
   const reportingSubModules = [
       { path: '/reportes', label: 'Reportes', icon: FileText },
+      { path: '/admin/asistente-ia', label: 'Asistente IA', icon: Sparkles },
       { path: '/admin/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
       { path: '/admin/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
   ];
