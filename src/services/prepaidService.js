@@ -28,13 +28,19 @@ export const prepaidService = {
 
   downloadPDF: async (orderId) => {
     try {
-      const response = await apiClient.get(`/prepago/${orderId}/pdf/`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await apiClient.get(`/prepago/${orderId}/pdf/`);
+      const { pdf_base64, filename } = response.data;
+      const byteCharacters = atob(pdf_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `comprobante_prepago_${orderId}.pdf`);
+      link.setAttribute('download', filename || `comprobante_prepago_${orderId}.pdf`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
