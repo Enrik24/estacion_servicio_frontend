@@ -21,6 +21,8 @@ function ClientesLimitesModule() {
   const [editingCliente, setEditingCliente] = useState(null);
   const [formData, setFormData] = useState(LIMITE_FORM_INICIAL);
   const [loading, setLoading] = useState(false);
+  const [showConsumoModal, setShowConsumoModal] = useState(false);
+const [consumoData, setConsumoData] = useState(null);
 
   useEffect(() => {
     cargarDatos();
@@ -130,26 +132,44 @@ function ClientesLimitesModule() {
   const mensual = limitesCliente.MENSUAL?.valor || 0;
   
   try {
-    const hoy = new Date().toISOString().split('T')[0];
-    const res = await apiClient.get(`/ventas/?cliente=${cliente.id}&estado=COMPLETADA`);
+    const res = await apiClient.get(`/ventas/por_usuario_cliente/?usuario_id=${cliente.id}`);
     const ventas = Array.isArray(res.data) ? res.data : res.data.results || [];
     
-    const consumoHoy = ventas
-      .filter(v => v.fecha_hora?.startsWith(hoy))
-      .reduce((acc, v) => acc + parseFloat(v.total || 0), 0);
-    
+    const ahora = new Date();
+    const hoy = new Date(ahora.getTime() - (4 * 60 * 60 * 1000)).toISOString().split('T')[0];
     const mesActual = hoy.substring(0, 7);
-    const consumoMes = ventas
-      .filter(v => v.fecha_hora?.startsWith(mesActual))
+
+    const consumoHoy = ventas
+      .filter(v => {
+        const fechaBolivia = new Date(new Date(v.fecha_hora).getTime() - (4 * 60 * 60 * 1000));
+        return fechaBolivia.toISOString().split('T')[0] === hoy;
+      })
       .reduce((acc, v) => acc + parseFloat(v.total || 0), 0);
 
-    alert(
-      `Consumo de ${cliente.nombre}\n` +
-      `Límite diario: Bs ${parseFloat(diario).toFixed(2)} | Consumido hoy: Bs ${consumoHoy.toFixed(2)}\n` +
-      `Límite mensual: Bs ${parseFloat(mensual).toFixed(2)} | Consumido este mes: Bs ${consumoMes.toFixed(2)}`
-    );
+    const consumoMes = ventas
+      .filter(v => {
+        const fechaBolivia = new Date(new Date(v.fecha_hora).getTime() - (4 * 60 * 60 * 1000));
+        return fechaBolivia.toISOString().split('T')[0].substring(0, 7) === mesActual;
+      })
+      .reduce((acc, v) => acc + parseFloat(v.total || 0), 0);
+
+    setConsumoData({
+      nombre: cliente.nombre,
+      limiteDiario: parseFloat(diario),
+      limiteMensual: parseFloat(mensual),
+      consumoHoy,
+      consumoMes,
+    });
+    setShowConsumoModal(true);
   } catch {
-    alert(`Consumo configurado para ${cliente.nombre}\nLímite diario: ${formatearBs(diario)}\nLímite mensual: ${formatearBs(mensual)}`);
+    setConsumoData({
+      nombre: cliente.nombre,
+      limiteDiario: parseFloat(diario),
+      limiteMensual: parseFloat(mensual),
+      consumoHoy: 0,
+      consumoMes: 0,
+    });
+    setShowConsumoModal(true);
   }
 };
 
@@ -263,8 +283,55 @@ function ClientesLimitesModule() {
             </form>
           </div>
         </div>
+        
       )}
+      {showConsumoModal && consumoData && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+      <h3 className="text-xl font-bold mb-4 text-slate-900">Consumo de {consumoData.nombre}</h3>
+      <div className="space-y-4">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-sm text-gray-500 mb-1">Límite Diario</p>
+          <div className="flex justify-between items-center">
+            <span className="font-semibold text-slate-900">Bs {consumoData.limiteDiario.toFixed(2)}</span>
+            <span className={`text-sm font-medium ${consumoData.consumoHoy >= consumoData.limiteDiario ? 'text-red-600' : 'text-emerald-600'}`}>
+              Consumido: Bs {consumoData.consumoHoy.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-2 bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full ${consumoData.consumoHoy >= consumoData.limiteDiario ? 'bg-red-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min((consumoData.consumoHoy / consumoData.limiteDiario) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-sm text-gray-500 mb-1">Límite Mensual</p>
+          <div className="flex justify-between items-center">
+            <span className="font-semibold text-slate-900">Bs {consumoData.limiteMensual?.toFixed(2) || '0.00'}</span>
+            <span className={`text-sm font-medium ${consumoData.consumoMes >= consumoData.limiteMensual ? 'text-red-600' : 'text-emerald-600'}`}>
+              Consumido: Bs {consumoData.consumoMes.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-2 bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full ${consumoData.consumoMes >= consumoData.limiteMensual ? 'bg-red-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min((consumoData.consumoMes / (consumoData.limiteMensual || 1)) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+      <button
+        className="mt-4 w-full py-2 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800"
+        onClick={() => setShowConsumoModal(false)}
+      >
+        Cerrar
+      </button>
     </div>
+  </div>
+)}
+    </div>
+    
   );
 }
 

@@ -45,7 +45,7 @@ function SuperAdminPanel() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingEmpresa, setEditingEmpresa] = useState(null);
     const [editFormData, setEditFormData] = useState({
-        nombre: '', nit: '', telefono: '', email: '', direccion: '', plan: 'BASICO',num_islas: empresa.total_islas || 1,
+        nombre: '', nit: '', telefono: '', email: '', direccion: '', plan: 'BASICO', num_islas: 1,
     });
     const [tiposCombustible] = useState([
         { tipo: 'GASOLINA_ESPECIAL', nombre: 'Gasolina Especial', precio_default: 6.96 },
