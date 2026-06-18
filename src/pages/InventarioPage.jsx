@@ -5,6 +5,7 @@ import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { inventarioService } from '../services/inventarioService';
+import apiClient from '../services/api';
 
 function NivelBar({ porcentaje, enAlerta }) {
     const color = enAlerta ? 'bg-red-500' : porcentaje < 50 ? 'bg-amber-400' : 'bg-emerald-500';
@@ -25,11 +26,18 @@ function InventarioPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [exito, setExito] = useState(null);
+    const [descargas, setDescargas] = useState([]);
+const [showHistorialModal, setShowHistorialModal] = useState(false);
+const [filtroSucursal, setFiltroSucursal] = useState('');
+const [filtroCombustible, setFiltroCombustible] = useState('');
+const [filtroFecha, setFiltroFecha] = useState('');
+const [showHistorial, setShowHistorial] = useState(false);
 
     const [showCrearModal, setShowCrearModal] = useState(false);
     const [showDescargaModal, setShowDescargaModal] = useState(false);
     const [showAmpliarModal, setShowAmpliarModal] = useState(false);
     const [tanqueSeleccionado, setTanqueSeleccionado] = useState(null);
+    
 
     const [formTanque, setFormTanque] = useState({
         sucursal: '', tipo_combustible: '',
@@ -41,28 +49,35 @@ function InventarioPage() {
 
     useEffect(() => {
         cargarDatos();
-        const interval = setInterval(cargarDatos, 15000); // cada 5 segundos
-        return () => clearInterval(interval);
     }, []);
 
     const cargarDatos = async () => {
-        setLoading(true);
-        try {
-            const [tanquesRes, sucursalesRes, tiposRes] = await Promise.all([
-                inventarioService.getTanques(),
-                inventarioService.getSucursales(),
-                inventarioService.getTiposCombustible(),
-            ]);
-            
-            setTanques(Array.isArray(tanquesRes.data) ? tanquesRes.data : tanquesRes.data.results || []);
-            setSucursales(Array.isArray(sucursalesRes.data) ? sucursalesRes.data : sucursalesRes.data.results || []);
-            setTiposCombustible(Array.isArray(tiposRes.data) ? tiposRes.data : tiposRes.data.results || []);
-        } catch {
-            setError('Error al cargar datos');
-        } finally {
-            setLoading(false);
-        }
-    };
+    setLoading(true);
+    try {
+        const [tanquesRes, sucursalesRes, tiposRes] = await Promise.all([
+            inventarioService.getTanques(),
+            inventarioService.getSucursales(),
+            inventarioService.getTiposCombustible(),
+        ]);
+        
+        setTanques(Array.isArray(tanquesRes.data) ? tanquesRes.data : tanquesRes.data.results || []);
+        setSucursales(Array.isArray(sucursalesRes.data) ? sucursalesRes.data : sucursalesRes.data.results || []);
+        setTiposCombustible(Array.isArray(tiposRes.data) ? tiposRes.data : tiposRes.data.results || []);
+
+        // Cargar descargas por separado para no romper todo si falla
+       try {
+    const descargasRes = await apiClient.get('/inventario/descargas/');
+    setDescargas(Array.isArray(descargasRes.data) ? descargasRes.data : descargasRes.data.results || []);
+} catch (err) {
+    setDescargas([]);
+}
+
+    } catch {
+        setError('Error al cargar datos');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const handleCrearTanque = async (e) => {
         e.preventDefault();
@@ -113,7 +128,12 @@ function InventarioPage() {
     };
 
     const tanquesEnAlerta = tanques.filter(t => t.en_alerta);
-
+const descargasFiltradas = descargas.filter(d => {
+    const matchSucursal = !filtroSucursal || d.tanque_sucursal === filtroSucursal;
+    const matchCombustible = !filtroCombustible || d.tanque_tipo_combustible === filtroCombustible;
+    const matchFecha = !filtroFecha || d.fecha.startsWith(filtroFecha);
+    return matchSucursal && matchCombustible && matchFecha;
+});
     return (
         <div className="flex min-h-screen bg-gray-50">
             <Sidebar />
@@ -175,11 +195,26 @@ function InventarioPage() {
                             </p>
                         </div>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                            <p className="text-xs text-gray-500 uppercase font-semibold">Total combustible</p>
-                            <p className="text-2xl font-bold text-slate-900 mt-1">
-                                {tanques.reduce((acc, t) => acc + parseFloat(t.nivel_actual), 0).toFixed(0)} Lt
-                            </p>
-                        </div>
+    <p className="text-xs text-gray-500 uppercase font-semibold">Total combustible</p>
+    <select
+        className="text-xs text-gray-400 border-none outline-none bg-transparent mt-1 mb-1"
+        value={filtroCombustible}
+        onChange={e => setFiltroCombustible(e.target.value)}
+    >
+        <option value="">Todos los tipos</option>
+        {tiposCombustible.map(t => (
+            <option key={t.id} value={t.tipo_display || t.tipo.replace(/_/g, ' ')}>
+                {t.tipo_display || t.tipo.replace(/_/g, ' ')}
+            </option>
+        ))}
+    </select>
+    <p className="text-2xl font-bold text-slate-900">
+        {tanques
+            .filter(t => !filtroCombustible || t.tipo_combustible_nombre === filtroCombustible)
+            .reduce((acc, t) => acc + parseFloat(t.nivel_actual), 0)
+            .toFixed(0)} Lt
+    </p>
+</div>
                     </div>
 
                     {/* Tanques */}
@@ -234,7 +269,85 @@ function InventarioPage() {
                                 </div>
                             ))}
                         </div>
+                        
                     )}
+
+                  {/* Historial de Descargas - Colapsable */}
+<div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <button
+        onClick={() => setShowHistorial(!showHistorial)}
+        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+    >
+        <h2 className="text-lg font-bold text-slate-900">Historial de Descargas</h2>
+        <span className="text-xs text-gray-400 flex items-center gap-2">
+            {descargasFiltradas.length} registros
+            <span className="text-gray-400">{showHistorial ? '▲' : '▼'}</span>
+        </span>
+    </button>
+
+    {showHistorial && (
+        <>
+            <div className="px-6 py-3 border-t border-gray-100">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <select value={filtroSucursal} onChange={e => setFiltroSucursal(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">Todas las sucursales</option>
+                        {sucursales.map(s => <option key={s.id} value={s.nombre}>{s.nombre}</option>)}
+                    </select>
+                    <select value={filtroCombustible} onChange={e => setFiltroCombustible(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">Todos los combustibles</option>
+                        {tiposCombustible.map(t => (
+                            <option key={t.id} value={t.tipo_display || t.tipo.replace(/_/g, ' ')}>
+                                {t.tipo_display || t.tipo.replace(/_/g, ' ')}
+                            </option>
+                        ))}
+                    </select>
+                    <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                </div>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Sucursal</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Combustible</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Volumen</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Nivel Antes</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Nivel Después</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Registrado por</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {descargasFiltradas.length === 0 ? (
+                            <tr>
+                                <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                                    No hay descargas registradas
+                                </td>
+                            </tr>
+                        ) : (
+                            descargasFiltradas.map(d => (
+                                <tr key={d.id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{new Date(d.fecha).toLocaleString('es-BO')}</td>
+                                    <td className="px-4 py-3 text-gray-600">{d.tanque_sucursal}</td>
+                                    <td className="px-4 py-3">
+                                        <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">{d.tanque_tipo_combustible}</span>
+                                    </td>
+                                    <td className="px-4 py-3 font-semibold text-emerald-600">+{parseFloat(d.volumen_descargado).toFixed(0)} Lt</td>
+                                    <td className="px-4 py-3 text-gray-500">{parseFloat(d.nivel_antes).toFixed(0)} Lt</td>
+                                    <td className="px-4 py-3 text-gray-500">{parseFloat(d.nivel_despues).toFixed(0)} Lt</td>
+                                    <td className="px-4 py-3 text-gray-600">{d.registrado_por_nombre}</td>
+                                    <td className="px-4 py-3 text-gray-400 text-xs">{d.observaciones || '—'}</td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </>
+    )}
+</div>
+
                 </main>
             </div>
 
@@ -272,25 +385,76 @@ function InventarioPage() {
 
             {/* Modal descarga */}
             {showDescargaModal && tanqueSeleccionado && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                        <h3 className="text-xl font-bold mb-1">Registrar Descarga</h3>
-                        <p className="text-xs text-gray-400 mb-4">{tanqueSeleccionado.sucursal_nombre} — {tanqueSeleccionado.tipo_combustible_nombre}</p>
-                        <p className="text-sm text-gray-600 mb-4">Nivel actual: <span className="font-semibold">{parseFloat(tanqueSeleccionado.nivel_actual).toFixed(0)} Lt</span> de <span className="font-semibold">{parseFloat(tanqueSeleccionado.capacidad_maxima).toFixed(0)} Lt</span></p>
-                        <form onSubmit={handleDescarga} className="space-y-4">
-                            <Input label="Volumen descargado (Lt)" type="number" step="0.01" value={formDescarga.volumen_descargado} onChange={e => setFormDescarga({...formDescarga, volumen_descargado: e.target.value})} required />
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Observaciones</label>
-                                <textarea value={formDescarga.observaciones} onChange={e => setFormDescarga({...formDescarga, observaciones: e.target.value})} className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows={3} placeholder="Ej: Descarga de camión cisterna..." />
-                            </div>
-                            <div className="flex gap-3 pt-2">
-                                <Button type="submit" loading={loadingAction}>Registrar</Button>
-                                <Button type="button" onClick={() => setShowDescargaModal(false)} className="!bg-gray-200 !text-gray-700">Cancelar</Button>
-                            </div>
-                        </form>
-                    </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold mb-1">Registrar Descarga de Cisterna</h3>
+            <p className="text-xs text-gray-400 mb-4">{tanqueSeleccionado.sucursal_nombre} — {tanqueSeleccionado.tipo_combustible_nombre}</p>
+            
+            {/* Info del tanque */}
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Nivel actual:</span>
+                    <span className="font-semibold">{parseFloat(tanqueSeleccionado.nivel_actual).toFixed(0)} Lt</span>
                 </div>
-            )}
+                <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Capacidad máxima:</span>
+                    <span className="font-semibold">{parseFloat(tanqueSeleccionado.capacidad_maxima).toFixed(0)} Lt</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Disponible para llenar:</span>
+                    <span className="font-semibold text-blue-600">
+                        {(parseFloat(tanqueSeleccionado.capacidad_maxima) - parseFloat(tanqueSeleccionado.nivel_actual)).toFixed(0)} Lt
+                    </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Nivel mínimo alerta:</span>
+                    <span className="font-semibold text-orange-500">{parseFloat(tanqueSeleccionado.nivel_minimo_alerta).toFixed(0)} Lt</span>
+                </div>
+                <NivelBar porcentaje={tanqueSeleccionado.porcentaje_nivel} enAlerta={tanqueSeleccionado.en_alerta} />
+            </div>
+
+            <form onSubmit={handleDescarga} className="space-y-4">
+                <Input 
+                    label="Volumen a descargar (Lt)" 
+                    type="number" 
+                    step="0.01"
+                    min="1"
+                    max={parseFloat(tanqueSeleccionado.capacidad_maxima) - parseFloat(tanqueSeleccionado.nivel_actual)}
+                    value={formDescarga.volumen_descargado} 
+                    onChange={e => setFormDescarga({...formDescarga, volumen_descargado: e.target.value})} 
+                    required 
+                />
+                
+                {/* Preview del nivel resultante */}
+                {formDescarga.volumen_descargado && (
+                    <div className="bg-blue-50 rounded-lg p-3 text-sm">
+                        <p className="text-blue-700 font-semibold">
+                            Nivel resultante: {(parseFloat(tanqueSeleccionado.nivel_actual) + parseFloat(formDescarga.volumen_descargado || 0)).toFixed(0)} Lt
+                        </p>
+                        <p className="text-blue-500 text-xs mt-0.5">
+                            ({(((parseFloat(tanqueSeleccionado.nivel_actual) + parseFloat(formDescarga.volumen_descargado || 0)) / parseFloat(tanqueSeleccionado.capacidad_maxima)) * 100).toFixed(1)}% de capacidad)
+                        </p>
+                    </div>
+                )}
+
+                <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Observaciones</label>
+                    <textarea 
+                        value={formDescarga.observaciones} 
+                        onChange={e => setFormDescarga({...formDescarga, observaciones: e.target.value})} 
+                        className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" 
+                        rows={3} 
+                        placeholder="Ej: Descarga de camión cisterna, placa ABC-123..." 
+                    />
+                </div>
+                <div className="flex gap-3 pt-2">
+                    <Button type="submit" loading={loadingAction}>Registrar Descarga</Button>
+                    <Button type="button" onClick={() => setShowDescargaModal(false)} className="!bg-gray-200 !text-gray-700">Cancelar</Button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
 
             {/* Modal ampliar capacidad */}
             {showAmpliarModal && tanqueSeleccionado && (
