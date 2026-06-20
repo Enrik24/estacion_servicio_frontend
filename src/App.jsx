@@ -21,6 +21,7 @@ import SuperAdminPanel from './pages/SuperAdminPanel';
 import GerentePanel from './pages/GerentePanel';
 import MonitoreoPage from './pages/MonitoreoPage';
 import InventarioPage from './pages/InventarioPage';
+import DashboardPage from './pages/DashboardPage';
 
 function App() {
   return (
@@ -28,6 +29,11 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/sucursales" element={<SucursalesPage />} />
+        <Route path="/home" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <DashboardPage />
+          </ProtectedRoute>
+        } />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
