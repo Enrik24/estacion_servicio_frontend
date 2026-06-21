@@ -59,6 +59,7 @@ useEffect(() => {
 
   const adminSubModules = [
     { path: '/admin/usuarios', label: 'Usuarios', icon: Users },
+    { path: '/admin/personal', label: 'Personal y Turnos', icon: UserCog },
     { path: '/admin/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
     { path: '/admin/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
@@ -68,6 +69,7 @@ useEffect(() => {
   ];
   const gerenteSubModules = [
     { path: '/gerente/usuarios', label: 'Usuarios', icon: Users },
+    { path: '/gerente/personal', label: 'Personal y Turnos', icon: Users },
     { path: '/gerente/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
     { path: '/gerente/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
     { path: '/gerente/roles', label: 'Roles', icon: UserCog },

@@ -16,6 +16,7 @@ import SuperAdminPanel from './pages/SuperAdminPanel';
 import GerentePanel from './pages/GerentePanel';
 import MonitoreoPage from './pages/MonitoreoPage';
 import InventarioPage from './pages/InventarioPage';
+import PersonalPage from './pages/PersonalPage';
 
 function App() {
   return (
