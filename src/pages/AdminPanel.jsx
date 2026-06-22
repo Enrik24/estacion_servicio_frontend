@@ -855,8 +855,13 @@ function SucursalesModule() {
       resetForm();
       cargarSucursales();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al guardar sucursal');
-    }
+    const errData = err.response?.data;
+    const msg = errData?.detail || 
+                (Array.isArray(errData) ? errData[0] : null) ||
+                errData?.non_field_errors?.[0] ||
+                'Error al guardar sucursal';
+    setError(msg);
+}
   };
 
   const handleEditar = (sucursal) => {

@@ -7,7 +7,7 @@ export default function PersonalPage() {
     const [personal, setPersonal] = useState([]);
     const [roles, setRoles] = useState([]);
     const [islas, setIslas] = useState([]);
-    const [userRole, setUserRole] = useState(''); 
+    const [userRole, setUserRole] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [exito, setExito] = useState('');
@@ -27,49 +27,49 @@ export default function PersonalPage() {
     });
 
     useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    let rol = '';
-    if (userStr) {
-        try {
-            const user = JSON.parse(userStr);
-            rol = user.roles_detalle?.[0]?.nombre?.toLowerCase() || '';
-            setUserRole(rol);
-        } catch (e) {
-            console.error('Error parsing user:', e);
+        const userStr = localStorage.getItem('user');
+        let rol = '';
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                rol = user.roles_detalle?.[0]?.nombre?.toLowerCase() || '';
+                setUserRole(rol);
+            } catch (e) {
+                console.error('Error parsing user:', e);
+            }
         }
-    }
-    cargarDatos(rol);
-}, []);
+        cargarDatos(rol);
+    }, []);
 
     useEffect(() => {
         if (tab === 'turnos') cargarTurnos();
     }, [tab, fechaTurnos]);
 
     const cargarDatos = async (rolActual) => {
-    setLoading(true);
-    try {
-        const [personalRes, rolesRes, islasRes] = await Promise.all([
-            personalService.getAll(),
-            personalService.getRoles(),
-            personalService.getIslas(),
-        ]);
-        const personalData = Array.isArray(personalRes.data)
-            ? personalRes.data
-            : personalRes.data.results || [];
-       setPersonal(personalData.filter(u => u.is_active !== false));
-        const rolesData = Array.isArray(rolesRes.data)
-            ? rolesRes.data
-            : rolesRes.data.results || [];
-        setRoles(rolesData.filter(r => {
-            const nombreRol = r.nombre?.toLowerCase();
-            if (rolActual === 'administrador') {
-                return ['gerente', 'operador', 'auditor'].includes(nombreRol);
-            }
-            if (rolActual === 'gerente') {
-                return ['operador', 'auditor'].includes(nombreRol);
-            }
-            return false;
-        }));
+        setLoading(true);
+        try {
+            const [personalRes, rolesRes, islasRes] = await Promise.all([
+                personalService.getAll(),
+                personalService.getRoles(),
+                personalService.getIslas(),
+            ]);
+            const personalData = Array.isArray(personalRes.data)
+                ? personalRes.data
+                : personalRes.data.results || [];
+            setPersonal(personalData.filter(u => u.is_active !== false));
+            const rolesData = Array.isArray(rolesRes.data)
+                ? rolesRes.data
+                : rolesRes.data.results || [];
+            setRoles(rolesData.filter(r => {
+                const nombreRol = r.nombre?.toLowerCase();
+                if (rolActual === 'administrador') {
+                    return ['gerente', 'operador', 'auditor'].includes(nombreRol);
+                }
+                if (rolActual === 'gerente') {
+                    return ['operador', 'auditor'].includes(nombreRol);
+                }
+                return false;
+            }));
             const islasData = Array.isArray(islasRes.data)
                 ? islasRes.data
                 : islasRes.data.results || [];
@@ -157,25 +157,25 @@ export default function PersonalPage() {
     };
 
     const handleAsignarTurno = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-        await apiClient.post('/turnos/', {
-            isla: parseInt(turnoData.isla),
-            horario: turnoData.horario,
-            operador_id: parseInt(turnoData.operador_id),
-            monto_inicial: 0,
-        });
-        mostrarExito('Turno asignado correctamente. Se notificará al operador.');
-        setShowTurnoModal(false);
-        await cargarTurnos();
-    } catch (err) {
-        setError(err.response?.data?.error || err.response?.data?.[0] || 'Error al asignar turno');
-    } finally {
-        setLoading(false);
-    }
-};
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            await apiClient.post('/turnos/', {
+                isla: parseInt(turnoData.isla),
+                horario: turnoData.horario,
+                operador_id: parseInt(turnoData.operador_id),
+                monto_inicial: 0,
+            });
+            mostrarExito('Turno asignado correctamente. Se notificará al operador.');
+            setShowTurnoModal(false);
+            await cargarTurnos();
+        } catch (err) {
+            setError(err.response?.data?.error || err.response?.data?.[0] || 'Error al asignar turno');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const operadores = personal.filter(u =>
         u.roles_detalle?.some(r => r.nombre?.toLowerCase() === 'operador')
@@ -333,16 +333,46 @@ export default function PersonalPage() {
                         </table>
                     </div>
 
-                    {/* Alerta islas sin cobertura */}
-                    {islas.filter(isla => !turnos.some(t => t.isla === isla.numero && t.estado === 'ABIERTO')).length > 0 && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                            <p className="text-amber-700 text-sm font-semibold">⚠️ Islas sin operador activo:</p>
-                            <p className="text-amber-600 text-sm mt-1">
-                                {islas.filter(isla => !turnos.some(t => t.isla === isla.numero && t.estado === 'ABIERTO'))
-                                    .map(i => `Isla ${i.numero}`).join(', ')}
-                            </p>
+                    {(() => {
+    const islasSinCobertura = islas.filter(isla => 
+    !turnos.some(t => t.isla_id === isla.id && t.estado === 'ABIERTO')
+);
+    
+    if (islasSinCobertura.length === 0) return null;
+
+    // Agrupar por sucursal
+    const porSucursal = islasSinCobertura.reduce((acc, isla) => {
+        const suc = isla.sucursal_nombre || 'Sin sucursal';
+        if (!acc[suc]) acc[suc] = [];
+        acc[suc].push(isla.numero);
+        return acc;
+    }, {});
+
+    return (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <p className="text-amber-700 text-sm font-semibold mb-3">⚠️ Islas sin operador activo:</p>
+            <div className="space-y-2">
+                {Object.entries(porSucursal).map(([sucursal, numIslas]) => (
+                    <div key={sucursal}>
+                        <p className="text-amber-800 text-xs font-bold uppercase tracking-wide mb-1">
+                            {sucursal}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                            {numIslas.map(num => (
+                                <span
+                                    key={num}
+                                    className="px-2 py-0.5 bg-amber-200 text-amber-800 text-xs font-semibold rounded-full"
+                                >
+                                    Isla {num}
+                                </span>
+                            ))}
                         </div>
-                    )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+})()}
                 </div>
             )}
 
@@ -444,7 +474,7 @@ export default function PersonalPage() {
                             <button onClick={() => setShowTurnoModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
                         </div>
                         <form onSubmit={handleAsignarTurno} className="space-y-4">
-                               <div>
+                            <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Operador</label>
                                 <select
                                     value={turnoData.operador_id}
@@ -468,7 +498,9 @@ export default function PersonalPage() {
                                 >
                                     <option value="">Selecciona una isla</option>
                                     {islas.map(i => (
-                                        <option key={i.id} value={i.id}>Isla {i.numero}</option>
+                                        <option key={i.id} value={i.id}>
+                                            {i.sucursal_nombre} — Isla {i.numero}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
