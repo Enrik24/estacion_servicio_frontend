@@ -4,8 +4,8 @@ import { ArrowRight, User, Settings, LogOut, ChevronDown, Menu, X, Bell, ArrowLe
 import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../../services/api';
 
-function Header({ 
-  showNav = true, 
+function Header({
+  showNav = true,
   variant = 'light',
   transparent = false,
   showUserMenu = false,
@@ -75,40 +75,40 @@ function Header({
   };
 
   const bgStyles = variant === 'dark' || (transparent && !scrolled)
-    ? 'bg-slate-900/50' 
-    : scrolled 
-      ? 'bg-slate-900 shadow-lg' 
+    ? 'bg-slate-900/50'
+    : scrolled
+      ? 'bg-slate-900 shadow-lg'
       : (variant === 'light' ? 'bg-white/95 shadow-sm' : 'bg-slate-900');
 
   const textStyles = variant === 'dark' || scrolled || (transparent && !scrolled)
-    ? 'text-white' 
+    ? 'text-white'
     : 'text-slate-900';
 
   const linkStyles = variant === 'dark' || scrolled || (transparent && !scrolled)
-    ? 'text-white hover:text-orange-500' 
+    ? 'text-white hover:text-orange-500'
     : 'text-gray-600 hover:text-slate-900';
 
   return (
     <header className={`${fixed ? 'fixed top-0 left-0 right-0' : 'relative'} z-50 transition-all duration-300 ${bgStyles}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div 
+          <div
             className="flex items-center cursor-pointer"
             onClick={() => navigate('/')}
           >
             {(() => {
-    const userStr = localStorage.getItem('user');
-    const userData = userStr ? JSON.parse(userStr) : null;
-    const nombreMostrar = userData?.sucursal_nombre || userData?.empresa_nombre || 'Bolivia';
-    const textColor = variant === 'dark' || scrolled || (transparent && !scrolled) ? 'text-white' : 'text-slate-900';
-    return (
-        <h1 className="text-2xl font-bold">
-            <span className="text-emerald-500">{nombreMostrar}</span>
-        </h1>
-    );
-})()}
+              const userStr = localStorage.getItem('user');
+              const userData = userStr ? JSON.parse(userStr) : null;
+              const nombreMostrar = userData?.sucursal_nombre || userData?.empresa_nombre || 'Surtidor Bolivia';
+              const textColor = variant === 'dark' || scrolled || (transparent && !scrolled) ? 'text-white' : 'text-slate-900';
+              return (
+                <h1 className="text-2xl font-bold">
+                  <span className="text-emerald-500">{nombreMostrar}</span>
+                </h1>
+              );
+            })()}
           </div>
-          
+
           {showNav && (
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#soporte" className={`${linkStyles} transition`}>Soporte</a>
@@ -120,27 +120,25 @@ function Header({
           {showUserMenu ? (
             <div className="flex items-center space-x-2">
               {/* Notification bell - outside avatar button */}
-              <button 
-                className={`p-2 rounded-full transition ${
-                  variant === 'dark' || scrolled || (transparent && !scrolled)
+              <button
+                className={`p-2 rounded-full transition ${variant === 'dark' || scrolled || (transparent && !scrolled)
                     ? 'hover:bg-slate-700'
                     : 'hover:bg-slate-100'
-                }`}
+                  }`}
                 onClick={() => {
                   // TODO: Open notifications panel
                 }}
               >
                 <Bell className={`w-5 h-5 ${textStyles}`} />
               </button>
-              
+
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition ${
-                    variant === 'dark' || scrolled || (transparent && !scrolled)
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition ${variant === 'dark' || scrolled || (transparent && !scrolled)
                       ? 'hover:bg-slate-800'
                       : 'hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="text-right">
@@ -189,48 +187,48 @@ function Header({
                           </button>
                         </>
                       ) : (
-  <>
-    <button
-      onClick={() => navigate('/mi-perfil')}
-      className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
-    >
-      <User className="w-4 h-4 text-gray-600" />
-      <span className="text-gray-700">Perfil</span>
-    </button>
+                        <>
+                          <button
+                            onClick={() => navigate('/mi-perfil')}
+                            className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
+                          >
+                            <User className="w-4 h-4 text-gray-600" />
+                            <span className="text-gray-700">Perfil</span>
+                          </button>
 
-    <button
-      onClick={() => navigate('/mis-compras')}
-      className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
-    >
-      <ShoppingBag className="w-4 h-4 text-gray-600" />
-      <span className="text-gray-700">Mis Compras</span>
-    </button>
+                          <button
+                            onClick={() => navigate('/mis-compras')}
+                            className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
+                          >
+                            <ShoppingBag className="w-4 h-4 text-gray-600" />
+                            <span className="text-gray-700">Mis Compras</span>
+                          </button>
 
-    {/* Solo mostrar Panel Admin si el usuario es Administrador o Gerente */}
-  {(userRole && ['administrador', 'gerente'].includes(userRole.toLowerCase())) && (
-    <button
-        onClick={() => navigate(userRole.toLowerCase() === 'gerente' ? '/gerente' : '/admin')}
-        className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
-    >
-        <Settings className="w-4 h-4 text-gray-600" />
-        <span className="text-gray-700">Panel Admin</span>
-    </button>
-)}
+                          {/* Solo mostrar Panel Admin si el usuario es Administrador o Gerente */}
+                          {(userRole && ['administrador', 'gerente'].includes(userRole.toLowerCase())) && (
+                            <button
+                              onClick={() => navigate(userRole.toLowerCase() === 'gerente' ? '/gerente' : '/admin')}
+                              className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-gray-50 transition"
+                            >
+                              <Settings className="w-4 h-4 text-gray-600" />
+                              <span className="text-gray-700">Panel Admin</span>
+                            </button>
+                          )}
 
-    <div className="border-t border-gray-200 my-2"></div>
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        handleLogout();
-      }}
-      className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-red-50 transition"
-    >
-      <LogOut className="w-4 h-4 text-red-500" />
-      <span className="text-red-500">Cerrar Sesión</span>
-    </button>
-  </>
-)}
+                          <div className="border-t border-gray-200 my-2"></div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLogout();
+                            }}
+                            className="w-full px-4 py-2 text-left flex items-center space-x-3 hover:bg-red-50 transition"
+                          >
+                            <LogOut className="w-4 h-4 text-red-500" />
+                            <span className="text-red-500">Cerrar Sesión</span>
+                          </button>
+                        </>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -252,7 +250,7 @@ function Header({
               </button>
             </div>
           ) : (
-            <button 
+            <button
               onClick={() => navigate('/login')}
               className={`hidden md:flex items-center space-x-1 font-semibold ${linkStyles} transition`}
             >
@@ -262,7 +260,7 @@ function Header({
           )}
 
           {/* Mobile menu button */}
-          <button 
+          <button
             className="md:hidden p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -281,7 +279,7 @@ function Header({
               <a href="#soporte" className={`${linkStyles} transition`}>Soporte</a>
               <button onClick={() => { navigate('/sucursales'); setMobileMenuOpen(false); }} className={`${linkStyles} transition bg-transparent border-none cursor-pointer p-0 text-left`}>Sucursales</button>
               <a href="#servicios" className={`${linkStyles} transition`}>Servicios</a>
-              <button 
+              <button
                 onClick={() => navigate('/login')}
                 className={`text-left font-semibold ${linkStyles} transition`}
               >
