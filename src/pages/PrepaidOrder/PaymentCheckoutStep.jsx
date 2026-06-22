@@ -5,7 +5,7 @@ import StripePaymentForm from '../../components/StripePaymentForm';
 import { prepaidService } from '../../services/prepaidService';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_tu_clave_de_pruebas_aqui");
 
 const PaymentCheckoutStep = ({ orderData, onPaymentSuccess, onBack }) => {
   const [clientSecret, setClientSecret] = useState('');

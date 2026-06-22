@@ -16,6 +16,7 @@ import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
 import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
 import AsistenteIAModule from '../components/admin/AsistenteIAModule';
 import PersonalPage from './PersonalPage';
+import ControlComprasPage from '../pages/ControlComprasPage';
 
 // Sub-modules
 function UsuariosModule() {
@@ -1687,6 +1688,7 @@ function AdminPanel() {
             <Route path="turnos" element={<TurnosAdminModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
             <Route path="backup" element={<BackupModule />} />
+           
           </Routes>
         </main>
       </div>

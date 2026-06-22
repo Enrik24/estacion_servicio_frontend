@@ -23,6 +23,7 @@ import MonitoreoPage from './pages/MonitoreoPage';
 import InventarioPage from './pages/InventarioPage';
 import PersonalPage from './pages/PersonalPage';
 import DashboardPage from './pages/DashboardPage';
+import ControlComprasPage from './pages/controlComprasPage';
 
 function App() {
   return (
@@ -108,6 +109,14 @@ function App() {
             <InventarioPage />
           </ProtectedRoute>
         } />
+
+        {/* TU NUEVO MÓDULO: Control de Órdenes de Compra y Prepagos a YPFB (CU 19 y CU 20) */}
+        <Route path="/inventario/compras-ypfb" element={
+          <ProtectedRoute rolesPermitidos={['Administrador', 'Gerente']}>
+            <ControlComprasPage />
+          </ProtectedRoute>
+        } />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
