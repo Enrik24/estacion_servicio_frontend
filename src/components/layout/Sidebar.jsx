@@ -23,7 +23,9 @@ import {
   FileText,
   Receipt,
   Activity,
-  Droplets
+  Droplets,
+  Sparkles,
+  Brain,
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -60,8 +62,6 @@ function Sidebar() {
   const adminSubModules = [
     { path: '/admin/usuarios', label: 'Usuarios', icon: Users },
     { path: '/admin/personal', label: 'Personal y Turnos', icon: UserCog },
-    { path: '/admin/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
-    { path: '/admin/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
     { path: '/admin/roles', label: 'Roles', icon: UserCog },
     { path: '/admin/permisos', label: 'Permisos', icon: Key },
     { path: '/admin/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
@@ -70,8 +70,6 @@ function Sidebar() {
   const gerenteSubModules = [
     { path: '/gerente/usuarios', label: 'Usuarios', icon: Users },
     { path: '/gerente/personal', label: 'Personal y Turnos', icon: Users },
-    { path: '/gerente/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
-    { path: '/gerente/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
     { path: '/gerente/roles', label: 'Roles', icon: UserCog },
     { path: '/gerente/permisos', label: 'Permisos', icon: Key },
     { path: '/gerente/bitacora', label: 'Bitácora del sistema', icon: ClipboardList },
@@ -93,8 +91,11 @@ const combustibleSubModules = [
     { path: '/inventario/tanques', label: 'Niveles de Tanques', icon: Fuel },
 ];
   const reportingSubModules = [
-    { path: '/reportes', label: 'Reportes', icon: FileText },
-  ];
+  { path: '/reportes', label: 'Reportes', icon: FileText },
+  { path: userRole === 'gerente' ? '/gerente/predicciones-ia' : '/admin/predicciones-ia', label: 'Predicciones IA', icon: TrendingUp },
+  { path: userRole === 'gerente' ? '/gerente/asistente-ia' : '/admin/asistente-ia', label: 'Asistente IA', icon: Sparkles },
+  { path: userRole === 'gerente' ? '/gerente/clientes-limites' : '/admin/clientes-limites', label: 'Clientes y Límites', icon: Gauge },
+];
   return (
     <aside className={`bg-slate-900 text-white transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'} min-h-screen flex flex-col flex-shrink-0`}>
       <div className="p-4 flex items-center justify-between">

@@ -14,6 +14,7 @@ import { usuariosService, rolesService, permisosService } from '../services/api'
 import './BitacoraPage.css';
 import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
 import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
+import AsistenteIAModule from '../components/admin/AsistenteIAModule';
 import PersonalPage from './PersonalPage';
 
 // Sub-modules
@@ -1679,6 +1680,7 @@ function AdminPanel() {
             <Route path="personal" element={<PersonalPage />} />
             <Route path="clientes-limites" element={<ClientesLimitesModule />} />
             <Route path="predicciones-ia" element={<PrediccionesIAModule />} />
+            <Route path="asistente-ia" element={<AsistenteIAModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
             <Route path="sucursales" element={<SucursalesModule />} />

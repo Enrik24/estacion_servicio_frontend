@@ -121,3 +121,4 @@ export { limitesConsumoService } from './limitesConsumoService.js';
 export { prediccionesIAService } from './prediccionesIAService.js';
 export { prepaidService } from './prepaidService.js';
 export { dashboardService } from './dashboardService.js';
+export { asistenteIAService } from './asistenteIAService.js';
