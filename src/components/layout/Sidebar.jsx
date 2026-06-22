@@ -21,9 +21,9 @@ import {
   Database,
   BarChart3,
   FileText,
-  Receipt,
   Activity,
-  Droplets
+  Droplets,
+  Receipt
 } from 'lucide-react';
 function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -88,7 +88,8 @@ function Sidebar() {
 ];
 
 const combustibleSubModules = [
-    { path: '/inventario/tanques', label: 'Niveles de Tanques', icon: Fuel },
+  { path: '/inventario/tanques', label: 'Niveles de Tanques', icon: Fuel },
+  { path: '/inventario/compras-ypfb', label: 'Órdenes y Prepagos YPFB', icon: Receipt },
 ];
   const reportingSubModules = [
     { path: '/reportes', label: 'Reportes', icon: FileText },
