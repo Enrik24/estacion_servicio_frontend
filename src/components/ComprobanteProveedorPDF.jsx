@@ -7,8 +7,8 @@ const styles = StyleSheet.create({
   section: { marginBottom: 15 },
   table: { display: 'table', width: 'auto', borderStyle: 'solid', borderWidth: 1, borderColor: '#bfbfbf', marginTop: 10 },
   tableRow: { flexDirection: 'row' },
-  tableColHeader: { width: '25%', borderStyle: 'solid', borderWidth: 1, borderColor: '#bfbfbf', backgroundColor: '#f0f4f8', padding: 5, fontWeight: 'bold' },
-  tableCol: { width: '25%', borderStyle: 'solid', borderWidth: 1, borderColor: '#bfbfbf', padding: 5 },
+  tableColHeader: { width: '35%', borderStyle: 'solid', borderWidth: 1, borderColor: '#bfbfbf', backgroundColor: '#f0f4f8', padding: 5, fontWeight: 'bold' },
+  tableCol: { width: '35%', borderStyle: 'solid', borderWidth: 1, borderColor: '#bfbfbf', padding: 5 },
   signatures: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 50 }
 });
 
@@ -18,12 +18,17 @@ export const ComprobanteProveedorPDF = ({ pagoData }) => (
       {/* Encabezado */}
       <View style={styles.header}>
         <View>
-          <Text style={{ fontWeight: 'bold', fontSize: 12 }}>ESTACIÓN DE SERVICIO "SURE"</Text>
-          <Text>Santa Cruz - Bolivia</Text>
+          {/* Aquí renderiza dinámicamente el nombre del Surtidor */}
+          <Text style={{ fontWeight: 'bold', fontSize: 12, uppercase: true }}>
+            {pagoData?.estacion?.nombre || 'ESTACIÓN DE SERVICIO'}
+          </Text>
+          <Text>Sucursal: {pagoData?.estacion?.sucursal}</Text>
+          <Text>NIT Estación: {pagoData?.estacion?.nit}</Text>
+          <Text>Operador: {pagoData?.estacion?.encargado}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.title}>COMPROBANTE DE PAGO</Text>
-          <Text style={{ color: 'red' }}>Nº {pagoData?.id_correlativo || '0001'}</Text>
+          <Text style={{ color: '#dc2626', fontWeight: 'bold' }}>Nº {pagoData?.id_correlativo || '0001'}</Text>
           <Text>Fecha: {pagoData?.fecha}</Text>
         </View>
       </View>

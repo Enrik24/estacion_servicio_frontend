@@ -8,9 +8,11 @@ import { comprasService } from '../services/comprasService';
 import { pdf } from '@react-pdf/renderer';
 import { ComprobanteProveedorPDF } from '../components/ComprobanteProveedorPDF';
 
+
 export default function ControlComprasPage() {
   const [activeTab, setActiveTab] = useState('cu19'); // 'cu19' o 'cu20'
   const [loading, setLoading] = useState(false);
+  const [guardandoPago, setGuardandoPago] = useState(false); // SOLUCIÓN: Evita el doble envío de pagos
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
 
   // Estados de datos (Cargados desde el backend de Django)
@@ -66,7 +68,7 @@ export default function ControlComprasPage() {
       await comprasService.createOrdenCompra(formOC);
       mostrarAlerta('success', `Orden de Compra registrada exitosamente.`);
       setFormOC({ tipo_combustible: '1', volumen_solicitado: '', precio_unitario: '' });
-      cargarDatos();
+      await cargarDatos();
     } catch (error) {
       mostrarAlerta('error', error.response?.data?.volumen_solicitado?.[0] || 'Error al emitir la orden.');
     } finally {
@@ -74,9 +76,11 @@ export default function ControlComprasPage() {
     }
   };
 
-  // Enviar CU 20
+  // Enviar CU 20 (Conciliación Bancaria y Pago)
   const handleSubmitPago = async (e) => {
     e.preventDefault();
+    if (guardandoPago) return;
+
     if (!formPago.orden_compra_id) {
       return mostrarAlerta('error', 'Debe seleccionar una Orden de Compra para conciliar.');
     }
@@ -86,28 +90,31 @@ export default function ControlComprasPage() {
       return mostrarAlerta('error', 'La Orden de Compra seleccionada es inválida.');
     }
     
-    setLoading(true);
+    setGuardandoPago(true);
     try {
       let archivoComprobante = formPago.comprobante_digital;
       
+      // Si no hay archivo real cargado, simulamos el voucher digital requerido por YPFB
       if (!archivoComprobante) {
         const contenidoSimulado = `Comprobante de Pago Virtual YPFB\nMonto Conciliado: ${ordenSeleccionada.total_gasto} Bs.`;
         const blobVirtual = new Blob([contenidoSimulado], { type: 'text/plain' });
         archivoComprobante = new File([blobVirtual], `voucher_auto_${Date.now()}.txt`, { type: 'text/plain' });
       }
 
-      const payload = {
-        orden_compra: parseInt(formPago.orden_compra_id),
+      // SOLUCIÓN: Construimos el payload exacto que tu servicio espera (pagoData)
+      const pagoPayload = {
+        orden_compra: parseInt(ordenSeleccionada.id),
         monto_pagado: parseFloat(ordenSeleccionada.total_gasto).toFixed(2),
-        metodo_pago: formPago.metodo_pago,
+        metodo_pago: formPago.metodo_pago && formPago.metodo_pago !== 'undefined' ? formPago.metodo_pago : 'TRANSFERENCIA',
         comprobante_digital: archivoComprobante
       };
 
-      await comprasService.registrarPagoProveedor(payload);
+      await comprasService.registrarPagoProveedor(pagoPayload);
       
       mostrarAlerta('success', 'Prepago a YPFB conciliado de manera automática. Suministro autorizado.');
       setFormPago({ orden_compra_id: '', metodo_pago: 'TRANSFERENCIA', comprobante_digital: null });
-      cargarDatos();
+      
+      await cargarDatos();
     } catch (error) {
       const errorBackend = error.response?.data;
       let mensajeDetalle = 'Error al conciliar el depósito bancario.';
@@ -115,7 +122,7 @@ export default function ControlComprasPage() {
       if (errorBackend) {
         if (typeof errorBackend === 'object') {
           mensajeDetalle = Object.entries(errorBackend)
-            .map(([campo, msgs]) => `${campo}: ${msgs.join(' ')}`)
+            .map(([campo, msgs]) => `${campo}: ${Array.isArray(msgs) ? msgs.join(' ') : msgs}`)
             .join(' | ');
         } else if (errorBackend.detail) {
           mensajeDetalle = errorBackend.detail;
@@ -123,18 +130,25 @@ export default function ControlComprasPage() {
       }
       mostrarAlerta('error', mensajeDetalle);
     } finally {
-      setLoading(false);
+      setGuardandoPago(false);
     }
   };
 
   const handleVerPDF = async (pago) => {
     try {
-      // 1. Armamos el objeto con la estructura que tu PDF necesita
+      const ordenAsociada = ordenes.find(o => o.id === pago.orden_compra);  
+      
       const pagoDataEstructurada = {
         id_correlativo: pago.id,
         fecha: new Date(pago.fecha_pago).toLocaleDateString(),
         metodo_pago: pago.metodo_pago,
-        nro_referencia: pago.nro_referencia,
+        nro_referencia: pago.nro_referencia || `REF-${pago.id}`,
+        estacion: {
+          nombre: ordenAsociada?.empresa_nombre || pago.empresa_nombre || "GENEX S.A.", 
+          sucursal: ordenAsociada?.sucursal_nombre || "Casa Matriz",
+          nit: ordenAsociada?.empresa_nit || "102457419", 
+          encargado: pago.registrado_por_nombre || "Bryan"
+        },
         proveedor: {
           razon_social: "YPFB Corporación",
           nit: "1020269024"
@@ -142,17 +156,14 @@ export default function ControlComprasPage() {
         detalles: [
           {
             nro_factura: `FAC-COMP-${pago.orden_compra}`,
-            concepto: `Aprovisionamiento de Combustible Regulado - Orden #${pago.orden_compra}`,
+            concepto: `Aprovisionamiento de \n ${ordenAsociada?.tipo_combustible_nombre || 'Combustible'} \n Código OC: ${ordenAsociada?.codigo_oc || pago.codigo_oc}`,
             monto: pago.monto_pagado
           }
         ]
       };
 
-      // 2. Generamos el documento PDF en memoria como un Blob
       const doc = <ComprobanteProveedorPDF pagoData={pagoDataEstructurada} />;
       const blob = await pdf(doc).toBlob();
-
-      // 3. Creamos una URL temporal segura y la abrimos en el navegador
       const urlComponente = URL.createObjectURL(blob);
       window.open(urlComponente, '_blank');
     } catch (err) {
@@ -162,10 +173,8 @@ export default function ControlComprasPage() {
   
   const ordenesPendientes = ordenes.filter(o => o.estado === 'PENDIENTE');
 
-
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Estructura del Layout unificada */}
       <Sidebar />
       
       <div className="flex-1 flex flex-col min-w-0">
@@ -260,13 +269,16 @@ export default function ControlComprasPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-600">
-                      {Array.isArray(ordenes) && ordenes.map(o => (
+                      {ordenes.map(o => (
                         <tr key={o.id} className="hover:bg-gray-50/80 transition">
                           <td className="px-6 py-4 font-mono font-bold text-slate-900">
                             {o.codigo_oc}
                             <p className="text-[10px] text-gray-400 font-sans font-normal mt-0.5">{new Date(o.fecha_emision).toLocaleDateString()}</p>
                           </td>
-                          <td className="px-6 py-4 font-medium">{o.tipo_combustible_nombre || 'Combustible'}</td>
+                          <td className="px-4 py-4 font-medium">
+                            {o.tipo_combustible_nombre || 'Combustible'}
+                            <p className="text-[10px] text-slate-400 font-normal">{o.empresa_nombre} - {o.sucursal_nombre}</p>
+                          </td>
                           <td className="px-6 py-4 text-right font-mono">{parseFloat(o.volumen_solicitado).toLocaleString()} Lts</td>
                           <td className="px-6 py-4 text-right font-bold font-mono text-slate-800">Bs. {parseFloat(o.total_gasto).toLocaleString()}</td>
                           <td className="px-6 py-4 text-center">
@@ -326,7 +338,10 @@ export default function ControlComprasPage() {
                       className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 transition"
                     />
                   </div>
-                  <Button type="submit" loading={loading}>💳 Validar Pago y Autorizar</Button>
+                  {/* Deshabilitar botón durante el proceso */}
+                  <Button type="submit" loading={guardandoPago} disabled={guardandoPago}>
+                    {guardandoPago ? '💳 Conciliando...' : '💳 Validar Pago y Autorizar'}
+                  </Button>
                 </form>
               </div>
 
@@ -345,25 +360,27 @@ export default function ControlComprasPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs text-gray-600">
-                      {Array.isArray(pagos) && pagos.map(p => (
+                      {pagos.map(p => (
                         <tr key={p.id} className="hover:bg-gray-50/80 transition">
                           <td className="px-6 py-4 font-mono font-bold text-slate-900">
                             #PAG-{p.id}
                             <p className="text-[10px] text-gray-400 font-sans font-normal mt-0.5">{new Date(p.fecha_pago).toLocaleDateString()}</p>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <span className="font-semibold text-slate-800">{p.metodo_pago}</span>
-                            <p className="text-[10px] text-gray-500 font-mono mt-0.5">Ref: {p.nro_referencia}</p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">Ref: {p.nro_referencia || `REF-${p.id}`}</p>
+                            <p className="text-[9px] text-blue-600 font-sans">{p.empresa_nombre}</p>
                           </td>
                           <td className="px-6 py-4 text-right font-bold font-mono text-emerald-700">Bs. {parseFloat(p.monto_pagado).toLocaleString()}</td>
                           <td className="px-4 py-4 text-center">
                             <button
-                                onClick={() => handleVerPDF(p)}
-                                className="text-blue-600 font-bold hover:text-blue-800 hover:underline bg-transparent border-0 cursor-pointer flex items-center justify-center mx-auto gap-1"
+                              type="button"
+                              onClick={() => handleVerPDF(p)}
+                              className="text-blue-600 font-bold hover:text-blue-800 hover:underline bg-transparent border-0 cursor-pointer flex items-center justify-center mx-auto gap-1"
                             >
-                            📄 Ver Comprobante
+                              📄 Ver Comprobante
                             </button>
-                           </td>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
