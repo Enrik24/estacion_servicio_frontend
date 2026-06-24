@@ -23,7 +23,7 @@ import MonitoreoPage from './pages/MonitoreoPage';
 import InventarioPage from './pages/InventarioPage';
 import PersonalPage from './pages/PersonalPage';
 import DashboardPage from './pages/DashboardPage';
-import ControlComprasPage from './pages/controlComprasPage';
+import ControlComprasPage from './pages/ControlComprasPage';
 
 function App() {
   return (
