@@ -14,6 +14,8 @@ import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
 import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
 import { RolesModule, PermisosModule, BitacoraModule, TurnosAdminModule } from './AdminPanel';
 import ConsolidacionCaja from './ConsolidacionCaja';
+import PersonalPage from './PersonalPage';
+import AsistenteIAModule from '../components/admin/AsistenteIAModule';
 
 function GerenteUsuariosModule() {
     const [users, setUsers] = useState([]);
@@ -249,6 +251,7 @@ function GerentePanel() {
                     <Routes>
                         <Route path="/" element={<Navigate to="usuarios" replace />} />
                         <Route path="usuarios" element={<GerenteUsuariosModule />} />
+                        <Route path="personal" element={<PersonalPage />} />
                         <Route path="roles" element={<RolesModule />} />
                         <Route path="permisos" element={<PermisosModule />} />
                         <Route path="bitacora" element={<BitacoraModule />} />
@@ -256,6 +259,7 @@ function GerentePanel() {
                         <Route path="consolidacion" element={<ConsolidacionCaja />} />
                         <Route path="clientes-limites" element={<ClientesLimitesModule />} />
                         <Route path="predicciones-ia" element={<PrediccionesIAModule />} />
+                        <Route path="asistente-ia" element={<AsistenteIAModule />} />
                     </Routes>
                 </main>
             </div>

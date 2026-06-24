@@ -14,6 +14,9 @@ import { usuariosService, rolesService, permisosService } from '../services/api'
 import './BitacoraPage.css';
 import ClientesLimitesModule from '../components/admin/ClientesLimitesModule';
 import PrediccionesIAModule from '../components/admin/PrediccionesIAModule';
+import AsistenteIAModule from '../components/admin/AsistenteIAModule';
+import PersonalPage from './PersonalPage';
+import ControlComprasPage from '../pages/ControlComprasPage';
 
 // Sub-modules
 function UsuariosModule() {
@@ -854,8 +857,13 @@ function SucursalesModule() {
       resetForm();
       cargarSucursales();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al guardar sucursal');
-    }
+    const errData = err.response?.data;
+    const msg = errData?.detail || 
+                (Array.isArray(errData) ? errData[0] : null) ||
+                errData?.non_field_errors?.[0] ||
+                'Error al guardar sucursal';
+    setError(msg);
+}
   };
 
   const handleEditar = (sucursal) => {
@@ -1670,14 +1678,17 @@ function AdminPanel() {
           <Routes>
             <Route path="/" element={<Navigate to="usuarios" replace />} />
             <Route path="usuarios" element={<UsuariosModule />} />
+            <Route path="personal" element={<PersonalPage />} />
             <Route path="clientes-limites" element={<ClientesLimitesModule />} />
             <Route path="predicciones-ia" element={<PrediccionesIAModule />} />
+            <Route path="asistente-ia" element={<AsistenteIAModule />} />
             <Route path="roles" element={<RolesModule />} />
             <Route path="permisos" element={<PermisosModule />} />
             <Route path="sucursales" element={<SucursalesModule />} />
             <Route path="turnos" element={<TurnosAdminModule />} />
             <Route path="bitacora" element={<BitacoraModule />} />
             <Route path="backup" element={<BackupModule />} />
+           
           </Routes>
         </main>
       </div>

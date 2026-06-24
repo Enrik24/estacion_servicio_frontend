@@ -21,7 +21,6 @@ function LandingPage() {
   };
 
   const handleBuyClick = () => {
-    // Check authentication at click time
     const token = localStorage.getItem('access_token');
     if (token) {
       navigate('/comprar-combustible');

@@ -45,23 +45,24 @@ function SuperAdminPanel() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingEmpresa, setEditingEmpresa] = useState(null);
     const [editFormData, setEditFormData] = useState({
-        nombre: '', nit: '', telefono: '', email: '', direccion: '', plan: 'BASICO'
+        nombre: '', nit: '', telefono: '', email: '', direccion: '', plan: 'BASICO', num_islas: 1,
     });
     const [tiposCombustible] = useState([
-    { tipo: 'GASOLINA_ESPECIAL', nombre: 'Gasolina Especial', precio_default: 6.96 },
-    { tipo: 'GASOLINA_PREMIUM', nombre: 'Gasolina Premium', precio_default: 11.00 },
-    { tipo: 'DIESEL', nombre: 'Diésel', precio_default: 9.80 },
-    { tipo: 'GNV', nombre: 'GNV', precio_default: 2.73 },
-]);
-const [tiposSeleccionados, setTiposSeleccionados] = useState({});
+        { tipo: 'GASOLINA_ESPECIAL', nombre: 'Gasolina Especial', precio_default: 6.96 },
+        { tipo: 'GASOLINA_PREMIUM', nombre: 'Gasolina Premium', precio_default: 11.00 },
+        { tipo: 'DIESEL', nombre: 'Diésel', precio_default: 9.80 },
+        { tipo: 'GNV', nombre: 'GNV', precio_default: 2.73 },
+    ]);
+    const [tiposSeleccionados, setTiposSeleccionados] = useState({});
     const [formData, setFormData] = useState({
         nombre: '',
         nit: '',
         telefono: '',
         email: '',
         direccion: '',
+        num_islas: 1,
         plan: 'BASICO',
-         latitud: null,
+        latitud: null,
         longitud: null,
         admin_nombre: '',
         admin_email: '',
@@ -85,32 +86,32 @@ const [tiposSeleccionados, setTiposSeleccionados] = useState({});
         }
     };
 
-   const handleCrearEmpresa = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-        await apiClient.post('/empresas/', {
-            ...formData,
-            tipos_combustible: tiposSeleccionados
-        });
-        setExito('Empresa creada correctamente');
-        setShowModal(false);
-        setTiposSeleccionados({});
-        setFormData({
-            nombre: '', nit: '', telefono: '', email: '',
-            direccion: '', plan: 'BASICO', latitud: null, longitud: null,
-            admin_nombre: '', admin_email: '', admin_password: '',
-        });
-        await cargarEmpresas();
-    } catch (err) {
-        const errData = err.response?.data;
-        const msg = errData?.admin_email?.[0] || errData?.nombre?.[0] || errData?.error || 'Error al crear empresa';
-        setError(msg);
-    } finally {
-        setLoading(false);
-    }
-};
+    const handleCrearEmpresa = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            await apiClient.post('/empresas/', {
+                ...formData,
+                tipos_combustible: tiposSeleccionados
+            });
+            setExito('Empresa creada correctamente');
+            setShowModal(false);
+            setTiposSeleccionados({});
+            setFormData({
+                nombre: '', nit: '', telefono: '', email: '',
+                direccion: '', plan: 'BASICO', latitud: null, longitud: null,
+                admin_nombre: '', admin_email: '', admin_password: '',
+            });
+            await cargarEmpresas();
+        } catch (err) {
+            const errData = err.response?.data;
+            const msg = errData?.admin_email?.[0] || errData?.nombre?.[0] || errData?.error || 'Error al crear empresa';
+            setError(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const cambiarEstado = async (empresa, nuevoEstado) => {
         try {
@@ -137,36 +138,36 @@ const [tiposSeleccionados, setTiposSeleccionados] = useState({});
         PROFESIONAL: 'bg-purple-100 text-purple-700',
         ENTERPRISE: 'bg-amber-100 text-amber-700',
     };
-const handleEditarEmpresa = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-        const payload = {
-            nombre: editFormData.nombre,
-            nit: editFormData.nit,
-            telefono: editFormData.telefono,
-            email: editFormData.email,
-            direccion: editFormData.direccion,
-            plan: editFormData.plan,
-        };
-        if (editFormData.nuevo_admin_email) {
-            payload.nuevo_admin_email = editFormData.nuevo_admin_email;
-            payload.nuevo_admin_nombre = editFormData.nuevo_admin_nombre;
-            payload.nuevo_admin_password = editFormData.nuevo_admin_password;
+    const handleEditarEmpresa = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            const payload = {
+                nombre: editFormData.nombre,
+                nit: editFormData.nit,
+                telefono: editFormData.telefono,
+                email: editFormData.email,
+                direccion: editFormData.direccion,
+                plan: editFormData.plan,
+            };
+            if (editFormData.nuevo_admin_email) {
+                payload.nuevo_admin_email = editFormData.nuevo_admin_email;
+                payload.nuevo_admin_nombre = editFormData.nuevo_admin_nombre;
+                payload.nuevo_admin_password = editFormData.nuevo_admin_password;
+            }
+            await apiClient.patch(`/empresas/${editingEmpresa.id}/`, payload);
+            setExito('Empresa actualizada correctamente');
+            setShowEditModal(false);
+            setEditingEmpresa(null);
+            await cargarEmpresas();
+        } catch (err) {
+            setError(err.response?.data?.error || 'Error al actualizar empresa');
+        } finally {
+            setLoading(false);
         }
-        await apiClient.patch(`/empresas/${editingEmpresa.id}/`, payload);
-        setExito('Empresa actualizada correctamente');
-        setShowEditModal(false);
-        setEditingEmpresa(null);
-        await cargarEmpresas();
-    } catch (err) {
-        setError(err.response?.data?.error || 'Error al actualizar empresa');
-    } finally {
-        setLoading(false);
-    }
-   
-};
+
+    };
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
@@ -342,33 +343,41 @@ const handleEditarEmpresa = async (e) => {
             {/* Modal nueva empresa */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold mb-4">Nueva Empresa</h3>
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg sm:text-xl font-bold mb-4">Nueva Empresa</h3>
                         <form onSubmit={handleCrearEmpresa} className="space-y-4">
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Datos de la empresa</p>
                             <Input label="Nombre de la empresa" value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} required />
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <Input label="NIT" value={formData.nit} onChange={e => setFormData({ ...formData, nit: e.target.value })} />
                                 <Input label="Teléfono" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} />
                             </div>
                             <Input label="Email empresa" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                             <Input label="Dirección" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} />
+                            <Input
+                                label="Número de islas"
+                                type="number"
+                                min="0"
+                                max="20"
+                                value={formData.num_islas}
+                                onChange={e => setFormData({ ...formData, num_islas: parseInt(e.target.value) })}
+                            />
                             {/* MAPA - agregar aquí */}
-<div>
-    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-        Ubicación en el mapa — haz clic para marcar
-    </label>
-    <MapaPicker
-        latitud={formData.latitud}
-        longitud={formData.longitud}
-        onSelect={(lat, lng) => setFormData({ ...formData, latitud: lat, longitud: lng })}
-    />
-    {formData.latitud && (
-        <p className="text-xs text-gray-400 mt-1">
-            Lat: {formData.latitud.toFixed(6)}, Lng: {formData.longitud.toFixed(6)}
-        </p>
-    )}
-</div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                                    Ubicación en el mapa — haz clic para marcar
+                                </label>
+                                <MapaPicker
+                                    latitud={formData.latitud}
+                                    longitud={formData.longitud}
+                                    onSelect={(lat, lng) => setFormData({ ...formData, latitud: lat, longitud: lng })}
+                                />
+                                {formData.latitud && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        Lat: {formData.latitud.toFixed(6)}, Lng: {formData.longitud.toFixed(6)}
+                                    </p>
+                                )}
+                            </div>
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Plan</label>
                                 <select
@@ -381,45 +390,47 @@ const handleEditarEmpresa = async (e) => {
                                     <option value="ENTERPRISE">Enterprise</option>
                                 </select>
                             </div>
-<div>
-    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-        Tipos de combustible y precios
-    </p>
-    <div className="space-y-2">
-        {tiposCombustible.map(t => (
-            <div key={t.tipo} className="flex items-center gap-3">
-                <input
-                    type="checkbox"
-                    id={`tipo-${t.tipo}`}
-                    checked={!!tiposSeleccionados[t.tipo]}
-                    onChange={(e) => {
-                        if (e.target.checked) {
-                            setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: t.precio_default });
-                        } else {
-                            const { [t.tipo]: _, ...rest } = tiposSeleccionados;
-                            setTiposSeleccionados(rest);
-                        }
-                    }}
-                    className="h-4 w-4 text-emerald-500 rounded"
-                />
-                <label htmlFor={`tipo-${t.tipo}`} className="text-sm text-gray-700 w-40">{t.nombre}</label>
-                {tiposSeleccionados[t.tipo] !== undefined && (
-                    <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400">Bs.</span>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={tiposSeleccionados[t.tipo]}
-                            onChange={(e) => setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: parseFloat(e.target.value) })}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
-                        />
-                        <span className="text-xs text-gray-400">/Lt</span>
-                    </div>
-                )}
-            </div>
-        ))}
-    </div>
-</div>
+                            <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                    Tipos de combustible y precios
+                                </p>
+                                <div className="space-y-2">
+                                    {tiposCombustible.map(t => (
+                                        <div key={t.tipo} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`tipo-${t.tipo}`}
+                                                    checked={!!tiposSeleccionados[t.tipo]}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: t.precio_default });
+                                                        } else {
+                                                            const { [t.tipo]: _, ...rest } = tiposSeleccionados;
+                                                            setTiposSeleccionados(rest);
+                                                        }
+                                                    }}
+                                                    className="h-4 w-4 text-emerald-500 rounded flex-shrink-0"
+                                                />
+                                                <label htmlFor={`tipo-${t.tipo}`} className="text-sm text-gray-700">{t.nombre}</label>
+                                            </div>
+                                            {tiposSeleccionados[t.tipo] !== undefined && (
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-xs text-gray-400">Bs.</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={tiposSeleccionados[t.tipo]}
+                                                        onChange={(e) => setTiposSeleccionados({ ...tiposSeleccionados, [t.tipo]: parseFloat(e.target.value) })}
+                                                        className="border border-gray-300 rounded px-2 py-1 text-sm w-full sm:w-24"
+                                                    />
+                                                    <span className="text-xs text-gray-400">/Lt</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">Administrador de la empresa</p>
                             <Input label="Nombre del administrador" value={formData.admin_nombre} onChange={e => setFormData({ ...formData, admin_nombre: e.target.value })} required />
                             <Input label="Email del administrador" type="email" value={formData.admin_email} onChange={e => setFormData({ ...formData, admin_email: e.target.value })} required />
@@ -427,7 +438,7 @@ const handleEditarEmpresa = async (e) => {
 
                             {error && <p className="text-xs text-red-500">{error}</p>}
 
-                            <div className="flex gap-3 pt-2">
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
                                 <Button type="submit" loading={loading}>Crear empresa</Button>
                                 <Button type="button" onClick={() => setShowModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
                             </div>
@@ -436,67 +447,75 @@ const handleEditarEmpresa = async (e) => {
                 </div>
             )}
             {showEditModal && editingEmpresa && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
-            <h3 className="text-xl font-bold mb-4">Editar Empresa</h3>
-            <form onSubmit={handleEditarEmpresa} className="space-y-4">
-                <Input label="Nombre de la empresa" value={editFormData.nombre} onChange={e => setEditFormData({...editFormData, nombre: e.target.value})} required />
-                <div className="grid grid-cols-2 gap-3">
-                    <Input label="NIT" value={editFormData.nit} onChange={e => setEditFormData({...editFormData, nit: e.target.value})} />
-                    <Input label="Teléfono" value={editFormData.telefono} onChange={e => setEditFormData({...editFormData, telefono: e.target.value})} />
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-4 sm:p-6">
+                        <h3 className="text-lg sm:text-xl font-bold mb-4">Editar Empresa</h3>
+                        <form onSubmit={handleEditarEmpresa} className="space-y-4">
+                            <Input label="Nombre de la empresa" value={editFormData.nombre} onChange={e => setEditFormData({ ...editFormData, nombre: e.target.value })} required />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <Input label="NIT" value={editFormData.nit} onChange={e => setEditFormData({ ...editFormData, nit: e.target.value })} />
+                                <Input label="Teléfono" value={editFormData.telefono} onChange={e => setEditFormData({ ...editFormData, telefono: e.target.value })} />
+                            </div>
+                            <Input label="Email empresa" type="email" value={editFormData.email} onChange={e => setEditFormData({ ...editFormData, email: e.target.value })} />
+                            <Input label="Dirección" value={editFormData.direccion} onChange={e => setEditFormData({ ...editFormData, direccion: e.target.value })} />
+                            <Input
+    label="Número de islas"
+    type="number"
+    min="1"
+    max="20"
+    value={editFormData.num_islas || 1}
+    onChange={e => setEditFormData({ ...editFormData, num_islas: parseInt(e.target.value) })}
+/>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Plan</label>
+                                <select
+                                    value={editFormData.plan}
+                                    onChange={e => setEditFormData({ ...editFormData, plan: e.target.value })}
+                                    className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                >
+                                    <option value="BASICO">Básico</option>
+                                    <option value="PROFESIONAL">Profesional</option>
+                                    <option value="ENTERPRISE">Enterprise</option>
+                                </select>
+                            </div>
+                            <div className="border-t border-gray-200 pt-4">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                    Cambiar administrador (opcional)
+                                </p>
+                                <Input
+                                    label="Email del nuevo administrador"
+                                    type="email"
+                                    value={editFormData.nuevo_admin_email || ''}
+                                    onChange={e => setEditFormData({ ...editFormData, nuevo_admin_email: e.target.value })}
+                                    placeholder="Dejar vacío para no cambiar"
+                                />
+                                {editFormData.nuevo_admin_email && (
+                                    <>
+                                        <Input
+                                            label="Nombre del administrador"
+                                            value={editFormData.nuevo_admin_nombre || ''}
+                                            onChange={e => setEditFormData({ ...editFormData, nuevo_admin_nombre: e.target.value })}
+                                            required
+                                        />
+                                        <Input
+                                            label="Contraseña inicial"
+                                            type="password"
+                                            value={editFormData.nuevo_admin_password || ''}
+                                            onChange={e => setEditFormData({ ...editFormData, nuevo_admin_password: e.target.value })}
+                                            required
+                                        />
+                                    </>
+                                )}
+                            </div>
+                            {error && <p className="text-xs text-red-500">{error}</p>}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                <Button type="submit" loading={loading}>Guardar cambios</Button>
+                                <Button type="button" onClick={() => setShowEditModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <Input label="Email empresa" type="email" value={editFormData.email} onChange={e => setEditFormData({...editFormData, email: e.target.value})} />
-                <Input label="Dirección" value={editFormData.direccion} onChange={e => setEditFormData({...editFormData, direccion: e.target.value})} />
-                <div>
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Plan</label>
-                    <select
-                        value={editFormData.plan}
-                        onChange={e => setEditFormData({...editFormData, plan: e.target.value})}
-                        className="block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    >
-                        <option value="BASICO">Básico</option>
-                        <option value="PROFESIONAL">Profesional</option>
-                        <option value="ENTERPRISE">Enterprise</option>
-                    </select>
-                    <div className="border-t border-gray-200 pt-4">
-    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-        Cambiar administrador (opcional)
-    </p>
-    <Input 
-        label="Email del nuevo administrador" 
-        type="email" 
-        value={editFormData.nuevo_admin_email || ''} 
-        onChange={e => setEditFormData({...editFormData, nuevo_admin_email: e.target.value})} 
-        placeholder="Dejar vacío para no cambiar"
-    />
-    {editFormData.nuevo_admin_email && (
-        <>
-            <Input 
-                label="Nombre del administrador" 
-                value={editFormData.nuevo_admin_nombre || ''} 
-                onChange={e => setEditFormData({...editFormData, nuevo_admin_nombre: e.target.value})}
-                required 
-            />
-            <Input 
-                label="Contraseña inicial" 
-                type="password" 
-                value={editFormData.nuevo_admin_password || ''} 
-                onChange={e => setEditFormData({...editFormData, nuevo_admin_password: e.target.value})}
-                required 
-            />
-        </>
-    )}
-</div>
-                </div>
-                {error && <p className="text-xs text-red-500">{error}</p>}
-                <div className="flex gap-3 pt-2">
-                    <Button type="submit" loading={loading}>Guardar cambios</Button>
-                    <Button type="button" onClick={() => setShowEditModal(false)} className="!bg-gray-200 !text-gray-700 hover:!bg-gray-300">Cancelar</Button>
-                </div>
-            </form>
-        </div>
-    </div>
-)}
+            )}
         </div>
     );
 }

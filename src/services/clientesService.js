@@ -1,5 +1,6 @@
 import apiClient from './api';
 
+
 export const clientesService = {
   getAll: (params = {}) => apiClient.get('/clientes/', { params }),
   getById: (id) => apiClient.get(`/clientes/${id}/`),

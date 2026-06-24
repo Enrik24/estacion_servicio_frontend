@@ -57,18 +57,20 @@ if (user?.is_superuser) {
     return;
 }
 
-const rol = user?.roles_detalle?.[0]?.nombre || '';
+const rol = (user?.roles_detalle?.[0]?.nombre || '').toLowerCase();
 
-if (rol === 'Administrador') {
+if (rol === 'administrador') {
     navigate('/admin');
-} else if (rol === 'Gerente') {
+} else if (rol === 'gerente') {
     navigate('/gerente');
-} else if (rol === 'Operador') {
+} else if (rol === 'operador') {
     navigate('/ventas/turno');
-} else if (rol === 'Auditor') {
+} else if (rol === 'auditor') {
     navigate('/admin/bitacora');
+} else if (rol === 'cliente') {
+    navigate('/');
 } else {
-    navigate('/dashboard');
+    navigate('/');
 }
     } catch (err) {
         console.error('Error de inicio de sesión:', err);
