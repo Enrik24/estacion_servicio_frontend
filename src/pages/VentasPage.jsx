@@ -720,7 +720,7 @@ function RegistrarVentaModule() {
 
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
 
                         {/* PASO 1 — Buscar placa */}
                         {paso === 'placa' && (
